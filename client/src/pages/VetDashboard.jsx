@@ -12,7 +12,7 @@ export default function VetDashboard() {
   return (
     <div className="page">
       {/* Hero */}
-      <div style={{ background: 'linear-gradient(135deg, #264653, #2a9d8f)', padding: '28px 20px', color: '#fff' }}>
+      <div style={{ background: 'linear-gradient(135deg, #2a9d8f 0%, #21867a 100%)', padding: '28px 20px', color: '#fff' }}>
         <p style={{ fontSize: '0.85rem', opacity: 0.8, marginBottom: 4 }}>獣医師向けダッシュボード</p>
         <h1 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: 16 }}>WanNyanCall24 で<br />副業・在宅相談を始めよう</h1>
         <div style={{ display: 'flex', gap: 12 }}>
