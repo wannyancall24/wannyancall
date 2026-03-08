@@ -190,7 +190,7 @@ export default function MyPage() {
             {PROFILE.plan === 'bought' ? (
               <>
                 {/* Active plan card */}
-                <div style={{ background: 'linear-gradient(135deg, #264653 0%, #2a9d8f 100%)', borderRadius: 20, padding: '24px 20px', color: '#fff', marginBottom: 16, position: 'relative', overflow: 'hidden' }}>
+                <div style={{ background: 'linear-gradient(135deg, #2a9d8f 0%, #21867a 100%)', borderRadius: 20, padding: '24px 20px', color: '#fff', marginBottom: 16, position: 'relative', overflow: 'hidden' }}>
                   <div style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                     <div>
@@ -233,7 +233,7 @@ export default function MyPage() {
                 </div>
 
                 {/* Upgrade */}
-                <div style={{ background: 'linear-gradient(135deg, #264653 0%, #2a9d8f 100%)', borderRadius: 20, padding: '24px 20px', color: '#fff', marginBottom: 16 }}>
+                <div style={{ background: 'linear-gradient(135deg, #2a9d8f 0%, #21867a 100%)', borderRadius: 20, padding: '24px 20px', color: '#fff', marginBottom: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                     <span style={{ background: '#f4a261', padding: '3px 10px', borderRadius: 50, fontSize: '0.75rem', fontWeight: 700 }}>期間限定</span>
                     <span style={{ fontSize: '0.85rem', opacity: 0.7, textDecoration: 'line-through' }}>¥19,800</span>
