@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { getStoredCard, getBrandLabel } from '../lib/stripeCard'
 
 const VETS = {
   1: { name: '田中 健一', specialty: '内科・皮膚科', photo: '👨‍⚕️', rating: 4.9 },
@@ -10,13 +11,49 @@ const VETS = {
   6: { name: '中村 あおい', specialty: '小動物・エキゾチック', photo: '👩‍⚕️', rating: 4.8 },
 }
 
-const TIMES = ['09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00', '19:00', '20:00', '21:00', '22:00', '23:00']
+const STEPS = ['入力', '確認', '相談中', '完了']
 
-function getTimeLabel(t) {
-  if (!t) return null
-  if (t >= '22:00' || t < '08:00') return { label: '深夜帯', fee: 1200, color: '#7c3aed' }
-  if (t >= '20:00') return { label: '夜間帯', fee: 800, color: '#d97706' }
-  return null
+function StepBar({ step }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', padding: '0 0 20px' }}>
+      {STEPS.map((label, i) => (
+        <div key={label} style={{ display: 'flex', alignItems: 'center', flex: i < STEPS.length - 1 ? 1 : 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <div style={{
+              width: 28, height: 28, borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '0.75rem', fontWeight: 700,
+              background: step > i + 1 ? '#2a9d8f' : step === i + 1 ? '#2a9d8f' : '#e5e7eb',
+              color: step >= i + 1 ? '#fff' : '#9ca3af',
+            }}>
+              {step > i + 1 ? '✓' : i + 1}
+            </div>
+            <span style={{ fontSize: '0.62rem', fontWeight: step === i + 1 ? 700 : 400, color: step === i + 1 ? '#2a9d8f' : '#9ca3af', whiteSpace: 'nowrap' }}>{label}</span>
+          </div>
+          {i < STEPS.length - 1 && (
+            <div style={{ flex: 1, height: 1, background: step > i + 1 ? '#2a9d8f' : '#e5e7eb', margin: '0 4px', marginBottom: 18 }} />
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function formatElapsed(sec) {
+  const m = Math.floor(sec / 60).toString().padStart(2, '0')
+  const s = (sec % 60).toString().padStart(2, '0')
+  return `${m}:${s}`
+}
+
+function calcTotal({ animalType, duration, hour }) {
+  const base = animalType === 'exotic' ? 4500 : 3000
+  const extPer5 = animalType === 'exotic' ? 1500 : 1000
+  const ext = Math.max(0, Math.floor((duration - 15) / 5)) * extPer5
+  const systemFee = 800
+  const timeFee = hour >= 22 || hour < 8 ? 1500 : hour >= 20 ? 1000 : 0
+  const timeLabel = hour >= 22 || hour < 8 ? '深夜加算' : hour >= 20 ? '夜間加算' : null
+  const total = base + ext + systemFee + timeFee
+  return { base, ext, systemFee, timeFee, timeLabel, total }
 }
 
 export default function Booking() {
@@ -24,110 +61,232 @@ export default function Booking() {
   const navigate = useNavigate()
   const vet = VETS[id] || VETS[1]
 
-  const [step, setStep] = useState(1)   // 1:入力 2:確認 3:完了
-  const [date, setDate] = useState('')
-  const [time, setTime] = useState('')
-  const [duration, setDuration] = useState(15)
+  const [step, setStep] = useState(1)
   const [pet, setPet] = useState('ポチ（トイプードル）')
+  const [animalType, setAnimalType] = useState('dogcat')
+  const [duration, setDuration] = useState(15)
+  const [symptoms, setSymptoms] = useState('')
+  const [symptomsError, setSymptomsError] = useState('')
+  const [apiError, setApiError] = useState('')
+  const [apiLoading, setApiLoading] = useState(false)
+  const [paymentIntentId, setPaymentIntentId] = useState('')
+  const [elapsedSec, setElapsedSec] = useState(0)
+  const timerRef = useRef(null)
 
-  const basePrice = 2200
-  const systemFee = 800
-  const timeMeta = getTimeLabel(time)
-  const timeFee = timeMeta ? timeMeta.fee : 0
-  const extFee = duration === 20 ? 800 : duration === 30 ? 2500 : 0
-  const total = basePrice + systemFee + timeFee + extFee
+  const card = getStoredCard()
+  const nowHour = new Date().getHours()
+  const { base, ext, systemFee, timeFee, timeLabel, total } = calcTotal({ animalType, duration, hour: nowHour })
 
-  const priceRows = [
-    { label: `相談料（${duration}分）`, amount: basePrice + extFee },
-    { label: 'システム利用料', amount: systemFee },
-    timeFee > 0 && { label: `${timeMeta.label}割増`, amount: timeFee },
-  ].filter(Boolean)
+  // 相談中タイマー
+  useEffect(() => {
+    if (step === 3) {
+      timerRef.current = setInterval(() => setElapsedSec(s => s + 1), 1000)
+    }
+    return () => clearInterval(timerRef.current)
+  }, [step])
 
-  const canProceed = date && time
+  async function handleStartConsultation() {
+    if (!card) { setApiError('カードが登録されていません'); return }
+    setApiLoading(true)
+    setApiError('')
+    try {
+      const res = await fetch('/api/stripe/create-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: total, paymentMethodId: card.paymentMethodId, customerId: card.customerId }),
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      if (data.status !== 'requires_capture') throw new Error(`予期しないステータス: ${data.status}`)
+      setPaymentIntentId(data.paymentIntentId)
+      setStep(3)
+    } catch (err) {
+      setApiError(err.message)
+    } finally {
+      setApiLoading(false)
+    }
+  }
 
-  // Step 3: 完了
-  if (step === 3) {
+  async function handleEndConsultation() {
+    setApiLoading(true)
+    setApiError('')
+    try {
+      const res = await fetch('/api/stripe/capture-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentIntentId, amount: total }),
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      clearInterval(timerRef.current)
+      setStep(4)
+    } catch (err) {
+      setApiError(err.message)
+    } finally {
+      setApiLoading(false)
+    }
+  }
+
+  // ── Step 1: 入力 ──
+  if (step === 1) {
     return (
-      <div className="page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 24px', textAlign: 'center', minHeight: '80vh' }}>
-        <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#e8f6f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.8rem', marginBottom: 20 }}>✅</div>
-        <h2 style={{ fontWeight: 800, color: '#2a9d8f', fontSize: '1.4rem', marginBottom: 8 }}>予約が完了しました！</h2>
-        <p style={{ color: '#6b7280', lineHeight: 1.8, marginBottom: 8 }}>
-          {vet.name}獣医師との相談を予約しました。<br />
-          確認メールをお送りしました。
-        </p>
-        <div style={{ background: '#e8f6f5', borderRadius: 14, padding: '16px 20px', marginBottom: 28, width: '100%', textAlign: 'left' }}>
-          {[
-            { label: '日時', value: `${date} ${time}〜` },
-            { label: '獣医師', value: `${vet.name} 獣医師` },
-            { label: '相談時間', value: `${duration}分` },
-            { label: 'お支払い', value: `¥${total.toLocaleString()}（決済済み）` },
-            { label: '相談方法', value: 'Google Meet（当日URLをメール送付）' },
-          ].map((r, i, arr) => (
-            <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < arr.length - 1 ? '1px solid #c8ece9' : 'none', fontSize: '0.88rem' }}>
-              <span style={{ color: '#6b7280' }}>{r.label}</span>
-              <span style={{ fontWeight: 600, color: '#264653' }}>{r.value}</span>
+      <div className="page">
+        <div style={{ padding: 16 }}>
+          <StepBar step={1} />
+
+          {/* Vet Info */}
+          <div className="card" style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20 }}>
+            <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#e8f6f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', flexShrink: 0 }}>{vet.photo}</div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '1rem' }}>{vet.name} 獣医師</div>
+              <div style={{ fontSize: '0.83rem', color: '#6b7280' }}>{vet.specialty}</div>
+              <span style={{ fontSize: '0.8rem', color: '#fbbf24' }}>★ {vet.rating}</span>
             </div>
-          ))}
+          </div>
+
+          {/* ペット */}
+          <div className="form-group">
+            <label className="form-label">🐾 相談するペット</label>
+            <select className="form-select" value={pet} onChange={e => setPet(e.target.value)}>
+              <option>ポチ（トイプードル）</option>
+              <option>みけ（スコティッシュフォールド）</option>
+              <option>＋ 新しいペットを追加</option>
+            </select>
+          </div>
+
+          {/* 動物種別 */}
+          <div className="form-group">
+            <label className="form-label">動物の種類</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[
+                { key: 'dogcat', label: '🐕 犬・猫', price: '¥3,000〜' },
+                { key: 'exotic', label: '🐹 小動物・鳥・その他', price: '¥4,500〜' },
+              ].map(t => (
+                <button key={t.key} onClick={() => setAnimalType(t.key)} style={{
+                  flex: 1, padding: '10px 8px', borderRadius: 12, cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem',
+                  border: animalType === t.key ? '2px solid #2a9d8f' : '2px solid #e5e7eb',
+                  background: animalType === t.key ? '#e8f6f5' : '#fff',
+                  color: animalType === t.key ? '#2a9d8f' : '#6b7280',
+                }}>
+                  <div>{t.label}</div>
+                  <div style={{ fontSize: '0.72rem', marginTop: 2, opacity: 0.8 }}>{t.price}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 相談時間 */}
+          <div className="form-group">
+            <label className="form-label">⏱ 相談時間</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[
+                { val: 15, label: '15分', sub: `¥${(animalType === 'exotic' ? 4500 : 3000).toLocaleString()}`, recommended: true },
+                { val: 20, label: '20分', sub: `+¥${(animalType === 'exotic' ? 1500 : 1000).toLocaleString()}` },
+                { val: 30, label: '30分', sub: `+¥${(animalType === 'exotic' ? 4500 : 3000).toLocaleString()}` },
+              ].map(d => (
+                <button key={d.val} onClick={() => setDuration(d.val)} style={{
+                  flex: 1, padding: '12px 8px', borderRadius: 12, border: 'none', cursor: 'pointer',
+                  background: duration === d.val ? '#2a9d8f' : '#f3f4f6',
+                  color: duration === d.val ? '#fff' : '#264653',
+                  fontWeight: 700, fontSize: '0.85rem', position: 'relative', transition: 'all 0.15s',
+                }}>
+                  {d.recommended && <div style={{ position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)', background: '#f4a261', color: '#fff', fontSize: '0.6rem', padding: '2px 6px', borderRadius: 50, fontWeight: 700, whiteSpace: 'nowrap' }}>おすすめ</div>}
+                  <div>{d.label}</div>
+                  <div style={{ fontSize: '0.72rem', marginTop: 3, opacity: 0.85 }}>{d.sub}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 症状 */}
+          <div className="form-group">
+            <label className="form-label">💬 相談内容・症状 <span style={{ color: '#e05555' }}>*</span></label>
+            <textarea
+              className="form-input"
+              rows={4}
+              style={{ resize: 'none', borderColor: symptomsError ? '#e05555' : undefined }}
+              placeholder="例：昨日から食欲がなく、元気がありません。いつ頃からどんな症状か、できるだけ詳しく教えてください。"
+              value={symptoms}
+              onChange={e => { setSymptoms(e.target.value); setSymptomsError('') }}
+            />
+            {symptomsError && <div style={{ color: '#e05555', fontSize: '0.78rem', marginTop: 4 }}>{symptomsError}</div>}
+          </div>
+
+          {/* 料金プレビュー */}
+          <div className="card" style={{ background: '#e8f6f5', border: '1.5px solid #2a9d8f33', marginBottom: 20 }}>
+            <h3 style={{ fontWeight: 700, marginBottom: 10, fontSize: '0.9rem', color: '#264653' }}>💴 料金内訳（予定）</h3>
+            {[
+              { label: `相談料（${duration}分）`, amount: base + ext },
+              { label: 'システム利用料', amount: systemFee },
+              timeFee > 0 && { label: timeLabel, amount: timeFee },
+            ].filter(Boolean).map((r, i, arr) => (
+              <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: i < arr.length - 1 ? '1px solid #c8ece9' : 'none', fontSize: '0.88rem' }}>
+                <span style={{ color: '#6b7280' }}>{r.label}</span>
+                <span style={{ fontWeight: 600 }}>¥{r.amount.toLocaleString()}</span>
+              </div>
+            ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 0', fontWeight: 800, fontSize: '1.05rem', borderTop: '2px solid #2a9d8f', marginTop: 8 }}>
+              <span style={{ color: '#264653' }}>合計（税込）</span>
+              <span style={{ color: '#2a9d8f' }}>¥{total.toLocaleString()}</span>
+            </div>
+          </div>
+
+          <button
+            className="btn-primary"
+            style={{ fontSize: '1.05rem', padding: '16px' }}
+            onClick={() => {
+              if (!symptoms.trim()) { setSymptomsError('相談内容を入力してください'); return }
+              setStep(2)
+            }}
+          >
+            内容を確認する →
+          </button>
         </div>
-        <button className="btn-primary" onClick={() => navigate('/')}>ホームへ戻る</button>
-        <button className="btn-secondary" style={{ marginTop: 10 }} onClick={() => navigate('/history')}>相談履歴を見る</button>
       </div>
     )
   }
 
-  // Step 2: 確認画面
+  // ── Step 2: 確認 ──
   if (step === 2) {
     return (
       <div className="page">
         <div style={{ padding: 16 }}>
-          {/* Progress */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-            {['日時選択', '内容確認', '決済'].map((s, i) => (
-              <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 6, flex: i < 2 ? 1 : 0 }}>
-                <div style={{ width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, background: i < 2 ? '#2a9d8f' : '#e5e7eb', color: i < 2 ? '#fff' : '#9ca3af' }}>{i + 1}</div>
-                <span style={{ fontSize: '0.75rem', color: i < 2 ? '#2a9d8f' : '#9ca3af', fontWeight: i < 2 ? 700 : 400 }}>{s}</span>
-                {i < 2 && <div style={{ flex: 1, height: 1, background: '#e5e7eb' }} />}
-              </div>
-            ))}
-          </div>
+          <StepBar step={2} />
 
-          <h2 style={{ fontWeight: 800, marginBottom: 16, fontSize: '1.1rem' }}>内容を確認してください</h2>
-
-          {/* Vet */}
           <div className="card" style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 14 }}>
             <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#e8f6f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem' }}>{vet.photo}</div>
             <div>
               <div style={{ fontWeight: 700 }}>{vet.name} 獣医師</div>
               <div style={{ fontSize: '0.83rem', color: '#6b7280' }}>{vet.specialty}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                <span style={{ color: '#fbbf24', fontSize: '0.8rem' }}>★</span>
-                <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>{vet.rating}</span>
-              </div>
             </div>
           </div>
 
-          {/* Details */}
-          <div className="card">
+          {/* 相談内容確認 */}
+          <div className="card" style={{ marginBottom: 14 }}>
             {[
-              { label: '相談日時', value: `${date}（${time}〜）` },
-              { label: '相談時間', value: `${duration}分` },
               { label: 'ペット', value: pet },
-              { label: '相談方法', value: 'Google Meet' },
+              { label: '動物種別', value: animalType === 'dogcat' ? '犬・猫' : '小動物・鳥・その他' },
+              { label: '相談時間', value: `${duration}分` },
+              { label: '相談内容', value: symptoms },
             ].map((r, i, arr) => (
               <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: i < arr.length - 1 ? '1px solid #e5e7eb' : 'none', fontSize: '0.9rem' }}>
-                <span style={{ color: '#6b7280' }}>{r.label}</span>
-                <span style={{ fontWeight: 600 }}>{r.value}</span>
+                <span style={{ color: '#6b7280', flexShrink: 0, marginRight: 12 }}>{r.label}</span>
+                <span style={{ fontWeight: 600, textAlign: 'right', color: '#264653' }}>{r.value}</span>
               </div>
             ))}
           </div>
 
-          {/* Price */}
-          <div className="card">
+          {/* 料金内訳 */}
+          <div className="card" style={{ marginBottom: 14 }}>
             <h3 style={{ fontWeight: 700, marginBottom: 12, fontSize: '0.95rem' }}>💴 料金内訳</h3>
-            {priceRows.map((row, i) => (
-              <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < priceRows.length - 1 ? '1px solid #e5e7eb' : 'none', fontSize: '0.9rem' }}>
-                <span style={{ color: '#6b7280' }}>{row.label}</span>
-                <span style={{ fontWeight: 600 }}>¥{row.amount.toLocaleString()}</span>
+            {[
+              { label: `相談料（${duration}分）`, amount: base + ext },
+              { label: 'システム利用料', amount: systemFee },
+              timeFee > 0 && { label: `${timeLabel}（現在の時間帯）`, amount: timeFee },
+            ].filter(Boolean).map((r, i, arr) => (
+              <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < arr.length - 1 ? '1px solid #e5e7eb' : 'none', fontSize: '0.9rem' }}>
+                <span style={{ color: '#6b7280' }}>{r.label}</span>
+                <span style={{ fontWeight: 600 }}>¥{r.amount.toLocaleString()}</span>
               </div>
             ))}
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0 0', fontWeight: 800, fontSize: '1.15rem', borderTop: '2px solid #2a9d8f', marginTop: 8 }}>
@@ -136,34 +295,58 @@ export default function Booking() {
             </div>
           </div>
 
-          {/* Cancel Policy */}
-          <div className="card" style={{ background: '#fef3c7', border: '1px solid #fcd34d', marginBottom: 14 }}>
-            <h3 style={{ fontWeight: 700, marginBottom: 10, fontSize: '0.9rem' }}>⚠️ キャンセルポリシー</h3>
-            {[
-              { label: '24時間前まで', value: '全額返金', color: '#16a34a' },
-              { label: '24時間以内', value: '50%返金', color: '#d97706' },
-              { label: '無断キャンセルの場合は', value: '返金なし', color: '#dc2626' },
-            ].map(p => (
-              <div key={p.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', padding: '5px 0' }}>
-                <span style={{ color: '#6b7280' }}>{p.label}</span>
-                <span style={{ fontWeight: 700, color: p.color }}>{p.value}</span>
+          {/* 仮押さえ説明 */}
+          <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 12, padding: '12px 14px', marginBottom: 14, fontSize: '0.83rem', color: '#92400e' }}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>⚠️ 決済のしくみ</div>
+            <ul style={{ paddingLeft: 16, lineHeight: 1.8, margin: 0 }}>
+              <li>相談開始時に <strong>¥{total.toLocaleString()} を仮押さえ</strong>します</li>
+              <li>相談終了後に実際の金額で <strong>確定決済</strong> されます</li>
+              <li>対応不可の場合は <strong>全額返金</strong> されます</li>
+            </ul>
+          </div>
+
+          {/* カード確認 */}
+          {card ? (
+            <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 12, padding: '14px 16px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: '1.5rem' }}>💳</span>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#264653' }}>{getBrandLabel(card.brand)} **** {card.last4}</div>
+                {card.expMonth && <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>有効期限 {String(card.expMonth).padStart(2, '0')}/{card.expYear}</div>}
               </div>
-            ))}
-            <p style={{ fontSize: '0.78rem', color: '#92400e', marginTop: 8 }}>※先払い制です。予約確定後に決済されます。</p>
-          </div>
-
-          {/* Stripe CTA */}
-          <div style={{ background: '#f9fafb', borderRadius: 14, padding: '16px', marginBottom: 12, border: '1px solid #e5e7eb' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#264653' }}>🔒 Stripeによる安全な決済</span>
+              <button
+                onClick={() => navigate('/mypage')}
+                style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: '0.78rem', color: '#2a9d8f', cursor: 'pointer', fontWeight: 600 }}
+              >
+                変更
+              </button>
             </div>
-            <p style={{ fontSize: '0.8rem', color: '#6b7280', lineHeight: 1.6 }}>
-              「Webで支払い」ボタンを押すとStripeの安全な決済画面に移動します。カード情報は当サービスには保存されません。
-            </p>
-          </div>
+          ) : (
+            <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 12, padding: '14px 16px', marginBottom: 14 }}>
+              <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#dc2626', marginBottom: 6 }}>💳 カードが登録されていません</div>
+              <p style={{ fontSize: '0.82rem', color: '#6b7280', marginBottom: 10 }}>相談を開始するには事前にカードを登録してください。</p>
+              <button
+                className="btn-primary"
+                style={{ background: '#2a9d8f', padding: '10px' }}
+                onClick={() => navigate('/mypage')}
+              >
+                マイページでカードを登録する →
+              </button>
+            </div>
+          )}
 
-          <button className="btn-primary" style={{ fontSize: '1.05rem', padding: '16px', marginBottom: 10 }} onClick={() => setStep(3)}>
-            🔒 Webで支払い（¥{total.toLocaleString()}）
+          {apiError && (
+            <div style={{ background: '#fee2e2', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.85rem', color: '#dc2626', fontWeight: 600 }}>
+              {apiError}
+            </div>
+          )}
+
+          <button
+            className="btn-primary"
+            style={{ fontSize: '1.05rem', padding: '16px', marginBottom: 10, opacity: !card || apiLoading ? 0.5 : 1 }}
+            disabled={!card || apiLoading}
+            onClick={handleStartConsultation}
+          >
+            {apiLoading ? '処理中...' : `🔒 相談を開始する（¥${total.toLocaleString()} 仮押さえ）`}
           </button>
           <button className="btn-secondary" onClick={() => setStep(1)}>← 戻る</button>
         </div>
@@ -171,130 +354,95 @@ export default function Booking() {
     )
   }
 
-  // Step 1: 入力
-  return (
-    <div className="page">
-      <div style={{ padding: 16 }}>
-        {/* Progress */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-          {['日時選択', '内容確認', '決済'].map((s, i) => (
-            <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 6, flex: i < 2 ? 1 : 0 }}>
-              <div style={{ width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, background: i === 0 ? '#2a9d8f' : '#e5e7eb', color: i === 0 ? '#fff' : '#9ca3af' }}>{i + 1}</div>
-              <span style={{ fontSize: '0.75rem', color: i === 0 ? '#2a9d8f' : '#9ca3af', fontWeight: i === 0 ? 700 : 400 }}>{s}</span>
-              {i < 2 && <div style={{ flex: 1, height: 1, background: '#e5e7eb' }} />}
+  // ── Step 3: 相談中 ──
+  if (step === 3) {
+    return (
+      <div className="page">
+        <div style={{ background: 'linear-gradient(135deg, #2a9d8f, #21867a)', padding: '20px 16px', color: '#fff', textAlign: 'center' }}>
+          <div style={{ fontSize: '0.82rem', opacity: 0.8, marginBottom: 4 }}>相談中</div>
+          <div style={{ fontSize: '2.5rem', fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{formatElapsed(elapsedSec)}</div>
+          <div style={{ fontSize: '0.78rem', opacity: 0.75, marginTop: 4 }}>経過時間</div>
+        </div>
+
+        <div style={{ padding: 16 }}>
+          {/* Vet info */}
+          <div className="card" style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 14 }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#e8f6f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.7rem', flexShrink: 0 }}>{vet.photo}</div>
+            <div>
+              <div style={{ fontWeight: 700 }}>{vet.name} 獣医師</div>
+              <div style={{ fontSize: '0.82rem', color: '#6b7280' }}>{vet.specialty}</div>
             </div>
-          ))}
-        </div>
-
-        {/* Vet Info */}
-        <div className="card" style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20 }}>
-          <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#e8f6f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>{vet.photo}</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: '1rem' }}>{vet.name} 獣医師</div>
-            <div style={{ fontSize: '0.83rem', color: '#6b7280' }}>{vet.specialty}</div>
+            <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.8rem', color: '#22c55e', fontWeight: 700 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+              接続中
+            </span>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontWeight: 800, color: '#2a9d8f' }}>¥2,200〜</div>
-            <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>15分〜</div>
+
+          {/* 仮押さえ中バナー */}
+          <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 12, padding: '10px 14px', marginBottom: 14, fontSize: '0.82rem', color: '#92400e' }}>
+            💳 ¥{total.toLocaleString()} を仮押さえ中。相談終了後に確定決済されます。
           </div>
-        </div>
 
-        {/* Pet */}
-        <div className="form-group">
-          <label className="form-label">🐾 相談するペット</label>
-          <select className="form-select" value={pet} onChange={e => setPet(e.target.value)}>
-            <option>ポチ（トイプードル）</option>
-            <option>みけ（スコティッシュフォールド）</option>
-            <option>+ 新しいペットを追加</option>
-          </select>
-        </div>
-
-        {/* Date */}
-        <div className="form-group">
-          <label className="form-label">📅 相談日</label>
-          <input className="form-input" type="date" value={date} onChange={e => setDate(e.target.value)} min={new Date().toISOString().split('T')[0]} />
-        </div>
-
-        {/* Time */}
-        <div className="form-group">
-          <label className="form-label">🕐 開始時間</label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-            {TIMES.map(t => {
-              const meta = getTimeLabel(t)
-              const selected = time === t
-              return (
-                <button key={t} onClick={() => setTime(t)} style={{
-                  padding: '10px 4px', borderRadius: 10, border: 'none', cursor: 'pointer',
-                  fontWeight: 700, fontSize: '0.85rem', transition: 'all 0.15s',
-                  background: selected ? '#2a9d8f' : meta ? '#fef3c7' : '#f3f4f6',
-                  color: selected ? '#fff' : meta ? '#d97706' : '#264653',
-                  boxShadow: selected ? '0 2px 8px rgba(42,157,143,0.3)' : 'none',
-                }}>
-                  {t}
-                  {meta && !selected && <div style={{ fontSize: '0.6rem', color: '#d97706' }}>{meta.label}</div>}
-                </button>
-              )
-            })}
+          {/* チャットエリア（プレースホルダー） */}
+          <div className="card" style={{ minHeight: 280, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', background: '#f9fafb', marginBottom: 14 }}>
+            <div style={{ textAlign: 'center', color: '#9ca3af', padding: '40px 20px', fontSize: '0.85rem' }}>
+              <div style={{ fontSize: '2rem', marginBottom: 8 }}>💬</div>
+              チャット・ビデオ通話エリア<br />（実装予定）
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input className="form-input" type="text" placeholder="メッセージを入力..." style={{ flex: 1, margin: 0 }} />
+              <button style={{ background: '#2a9d8f', color: '#fff', border: 'none', borderRadius: 10, padding: '0 16px', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}>送信</button>
+            </div>
           </div>
-          {timeMeta && (
-            <div style={{ marginTop: 8, padding: '8px 12px', background: '#fef3c7', borderRadius: 8, fontSize: '0.82rem', color: '#92400e' }}>
-              ⚠️ {timeMeta.label}のため +¥{timeMeta.fee.toLocaleString()} の割増が適用されます
+
+          {apiError && (
+            <div style={{ background: '#fee2e2', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.85rem', color: '#dc2626', fontWeight: 600 }}>
+              {apiError}
             </div>
           )}
-        </div>
 
-        {/* Duration */}
-        <div className="form-group">
-          <label className="form-label">⏱ 相談時間</label>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {[
-              { val: 15, label: '15分', sub: '¥2,200', recommended: true },
-              { val: 20, label: '20分', sub: '+¥800', recommended: false },
-              { val: 30, label: '30分', sub: '+¥2,500', recommended: false },
-            ].map(d => (
-              <button key={d.val} onClick={() => setDuration(d.val)} style={{
-                flex: 1, padding: '12px 8px', borderRadius: 12, border: 'none', cursor: 'pointer',
-                background: duration === d.val ? '#2a9d8f' : '#f3f4f6',
-                color: duration === d.val ? '#fff' : '#264653',
-                fontWeight: 700, fontSize: '0.88rem', position: 'relative',
-                boxShadow: duration === d.val ? '0 2px 8px rgba(42,157,143,0.3)' : 'none',
-                transition: 'all 0.15s',
-              }}>
-                {d.recommended && <div style={{ position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)', background: '#f4a261', color: '#fff', fontSize: '0.6rem', padding: '2px 6px', borderRadius: 50, fontWeight: 700, whiteSpace: 'nowrap' }}>おすすめ</div>}
-                <div>{d.label}</div>
-                <div style={{ fontSize: '0.72rem', marginTop: 3, opacity: 0.85 }}>{d.sub}</div>
-              </button>
-            ))}
-          </div>
+          <button
+            onClick={handleEndConsultation}
+            disabled={apiLoading}
+            style={{
+              width: '100%', background: apiLoading ? '#9ca3af' : '#ef4444', color: '#fff',
+              border: 'none', borderRadius: 50, padding: '16px', fontWeight: 800,
+              fontSize: '1rem', cursor: apiLoading ? 'default' : 'pointer',
+            }}
+          >
+            {apiLoading ? '処理中...' : '相談を終了する'}
+          </button>
+          <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#9ca3af', marginTop: 8 }}>
+            終了すると決済が確定されます
+          </p>
         </div>
-
-        {/* Price Summary */}
-        <div className="card" style={{ background: '#e8f6f5', border: '1.5px solid #2a9d8f33' }}>
-          <h3 style={{ fontWeight: 700, marginBottom: 10, fontSize: '0.9rem', color: '#264653' }}>💴 料金内訳</h3>
-          {priceRows.map((row, i) => (
-            <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: i < priceRows.length - 1 ? '1px solid #c8ece9' : 'none', fontSize: '0.88rem' }}>
-              <span style={{ color: '#6b7280' }}>{row.label}</span>
-              <span style={{ fontWeight: 600, color: '#264653' }}>¥{row.amount.toLocaleString()}</span>
-            </div>
-          ))}
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 0', fontWeight: 800, fontSize: '1.1rem', borderTop: '2px solid #2a9d8f', marginTop: 8 }}>
-            <span style={{ color: '#264653' }}>合計（税込）</span>
-            <span style={{ color: '#2a9d8f' }}>¥{total.toLocaleString()}</span>
-          </div>
-        </div>
-
-        <button
-          className="btn-primary"
-          style={{ fontSize: '1.05rem', padding: '16px', opacity: canProceed ? 1 : 0.5 }}
-          onClick={() => canProceed && setStep(2)}
-          disabled={!canProceed}
-        >
-          内容を確認する →
-        </button>
-        {!canProceed && (
-          <p style={{ textAlign: 'center', fontSize: '0.8rem', color: '#9ca3af', marginTop: 8 }}>日付と時間を選択してください</p>
-        )}
       </div>
+    )
+  }
+
+  // ── Step 4: 完了 ──
+  return (
+    <div className="page" style={{ padding: '40px 24px', textAlign: 'center', minHeight: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#e8f6f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.8rem', marginBottom: 20 }}>✅</div>
+      <h2 style={{ fontWeight: 800, color: '#2a9d8f', fontSize: '1.4rem', marginBottom: 8 }}>相談が完了しました</h2>
+      <p style={{ color: '#6b7280', lineHeight: 1.8, marginBottom: 20 }}>
+        {vet.name}獣医師との相談を終了しました。<br />決済が確定されました。
+      </p>
+      <div style={{ background: '#e8f6f5', borderRadius: 14, padding: '16px 20px', marginBottom: 28, width: '100%', maxWidth: 360, textAlign: 'left' }}>
+        {[
+          { label: '獣医師', value: `${vet.name} 獣医師` },
+          { label: '相談時間', value: `${duration}分（${formatElapsed(elapsedSec)}）` },
+          { label: 'お支払い', value: `¥${total.toLocaleString()}（確定）` },
+          { label: 'カード', value: card ? `**** ${card.last4}` : '登録カード' },
+        ].map((r, i, arr) => (
+          <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < arr.length - 1 ? '1px solid #c8ece9' : 'none', fontSize: '0.88rem' }}>
+            <span style={{ color: '#6b7280' }}>{r.label}</span>
+            <span style={{ fontWeight: 600, color: '#264653' }}>{r.value}</span>
+          </div>
+        ))}
+      </div>
+      <button className="btn-primary" onClick={() => navigate('/')}>ホームへ戻る</button>
+      <button className="btn-secondary" style={{ marginTop: 10 }} onClick={() => navigate('/history')}>相談履歴を見る</button>
     </div>
   )
 }

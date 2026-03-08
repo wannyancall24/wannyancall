@@ -9,6 +9,9 @@
     "dev:server": "npm --prefix server run dev",
     "install:all": "npm install && npm --prefix client install && npm --prefix server install"
   },
+  "dependencies": {
+    "stripe": "^17.7.0"
+  },
   "devDependencies": {
     "concurrently": "^9.0.0"
   }

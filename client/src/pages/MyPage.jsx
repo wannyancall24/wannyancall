@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import CardRegistration from '../components/CardRegistration'
+import { getStoredCard, clearCard, getBrandLabel } from '../lib/stripeCard'
 
 const PROFILE = {
   name: '山田 花子',
@@ -24,6 +26,8 @@ export default function MyPage() {
   const [withdrawStep, setWithdrawStep] = useState(1)
   const [withdrawDone, setWithdrawDone] = useState(false)
   const [expandedPet, setExpandedPet] = useState(null)
+  const [showCardRegistration, setShowCardRegistration] = useState(false)
+  const [card, setCard] = useState(getStoredCard)
 
   const tabs = [
     { key: 'profile', label: '👤 プロフィール' },
@@ -303,9 +307,53 @@ export default function MyPage() {
               </>
             )}
 
+            {/* お支払い設定 */}
+            <div className="card" style={{ marginBottom: 16 }}>
+              <h3 style={{ fontWeight: 700, marginBottom: 14, fontSize: '0.95rem' }}>💳 お支払い設定</h3>
+              {card ? (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid #e5e7eb', marginBottom: 12 }}>
+                    <span style={{ fontSize: '1.6rem' }}>💳</span>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#264653' }}>{getBrandLabel(card.brand)} **** {card.last4}</div>
+                      {card.expMonth && <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>有効期限 {String(card.expMonth).padStart(2, '0')}/{card.expYear}</div>}
+                    </div>
+                    <span style={{ marginLeft: 'auto', background: '#e8f6f5', color: '#2a9d8f', padding: '3px 10px', borderRadius: 50, fontSize: '0.72rem', fontWeight: 700 }}>登録済み</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => setShowCardRegistration(true)}
+                      style={{ flex: 1, background: '#e8f6f5', color: '#2a9d8f', border: 'none', borderRadius: 50, padding: '10px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}
+                    >
+                      カードを変更する
+                    </button>
+                    <button
+                      onClick={() => { clearCard(); setCard(null) }}
+                      style={{ flex: 1, background: '#fff', color: '#9ca3af', border: '1px solid #e5e7eb', borderRadius: 50, padding: '10px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}
+                    >
+                      削除
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: 14, lineHeight: 1.6 }}>
+                    カードを登録すると相談開始時に仮押さえ、終了後に確定決済されます。
+                  </p>
+                  <button
+                    onClick={() => setShowCardRegistration(true)}
+                    className="btn-primary"
+                    style={{ background: '#2a9d8f', padding: '12px' }}
+                  >
+                    ＋ カードを登録する
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Payment history */}
             <div className="card">
-              <h3 style={{ fontWeight: 700, marginBottom: 12, fontSize: '0.95rem' }}>💳 支払い履歴</h3>
+              <h3 style={{ fontWeight: 700, marginBottom: 12, fontSize: '0.95rem' }}>📋 支払い履歴</h3>
               {[
                 { date: '2024-11-01', label: '買い切りプラン購入', amount: 14800 },
                 { date: '2024-12-10', label: '相談料（田中 健一 獣医師）', amount: 4200 },
@@ -323,6 +371,13 @@ export default function MyPage() {
           </>
         )}
       </div>
+
+      {showCardRegistration && (
+        <CardRegistration
+          onSuccess={() => { setCard(getStoredCard()); setShowCardRegistration(false) }}
+          onClose={() => setShowCardRegistration(false)}
+        />
+      )}
     </div>
   )
 }
