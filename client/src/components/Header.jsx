@@ -52,12 +52,15 @@ export default function Header({ userMode, setUserMode }) {
             </button>
           </div>
         ) : (
-          <button onClick={() => navigate('/auth')} style={{
-            background: '#2a9d8f', border: 'none', borderRadius: 8,
-            padding: '6px 14px', fontSize: '0.82rem', color: '#fff', fontWeight: 700, cursor: 'pointer'
-          }}>
-            ログイン / 会員登録
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+            <button onClick={() => navigate('/auth')} style={{
+              background: '#2a9d8f', border: 'none', borderRadius: 8,
+              padding: '6px 14px', fontSize: '0.82rem', color: '#fff', fontWeight: 700, cursor: 'pointer'
+            }}>
+              ログイン / 会員登録
+            </button>
+            <span style={{ fontSize: '0.62rem', color: '#9ca3af', whiteSpace: 'nowrap' }}>登録不要ですぐ使える</span>
+          </div>
         )}
       </div>
       {showTabs && (
