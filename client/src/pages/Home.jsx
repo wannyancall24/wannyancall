@@ -391,8 +391,8 @@ export default function Home() {
         {/* Guarantees */}
         <div style={{ marginTop: 14, display: 'grid', gap: 8 }}>
           {[
-            { icon: '⚡', text: '事前審査なし・即つながる', sub: '登録後すぐに獣医師に相談できます' },
-            { icon: '💰', text: '対応不可なら即返金', sub: '獣医師が対応できない場合は全額返金＋近くの動物病院をご案内' },
+            { icon: '⚡', text: '事前審査なし・最短でつながる', sub: '登録後すぐに獣医師に相談できます' },
+            { icon: '💰', text: '対応不可なら全額返金', sub: '獣医師が対応できない場合は全額返金＋近くの動物病院をご案内' },
           ].map(g => (
             <div key={g.icon} style={{ background: '#e8f6f5', borderRadius: 12, padding: '12px 16px', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
               <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>{g.icon}</span>
