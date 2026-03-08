@@ -361,7 +361,7 @@ export default function Home() {
             深夜でも、田舎でも<br />獣医師に相談できる
           </h1>
           <p style={{ fontSize: '0.88rem', opacity: 0.9, marginBottom: 16, lineHeight: 1.5 }}>
-            24時間365日、自宅から獣医師に相談。すぐつながる。
+            24時間365日、自宅から獣医師に相談。最短でつながる。
           </p>
           <button className="btn-primary" style={{ background: '#f4a261', fontSize: '1rem', padding: '13px' }}
             onClick={() => navigate('/find')}>
@@ -542,7 +542,7 @@ export default function Home() {
         <h2 className="section-title">📋 相談の流れ</h2>
         <div className="card">
           {[
-            { step: 1, icon: '👨‍⚕️', title: '獣医師を選ぶ', desc: '空いている獣医師に即つながる（指名する場合は+500円）' },
+            { step: 1, icon: '👨‍⚕️', title: '獣医師を選ぶ', desc: '空いている獣医師に最短でつながる（指名する場合は+500円）' },
             { step: 2, icon: '💬', title: '相談方法を選ぶ', desc: 'チャット／画像・動画送信／ビデオ通話' },
             { step: 3, icon: '🐾', title: '相談する', descLines: [
               '犬・猫：相談する（獣医師が応答次第つながる）',
