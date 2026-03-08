@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
+import ReportModal from '../components/ReportModal'
+import BlockModal from '../components/BlockModal'
 
 const SHIFTS = [
   { date: '2024-12-11 (水)', time: '20:00〜23:00', bookings: 2, status: '受付中' },
@@ -74,6 +76,8 @@ export default function VetDashboard() {
   const [activeTab, setActiveTab] = useState('overview')
   const [application, setApplication] = useState(loadApplication)
   const [requests, setRequests] = useState(loadRequests)
+  const [reportTarget, setReportTarget] = useState(null)
+  const [blockTarget, setBlockTarget] = useState(null)
 
   const [form, setForm] = useState({
     name: '', email: '', tel: '', licenseNo: '',
@@ -453,15 +457,27 @@ export default function VetDashboard() {
               )}
 
               {isApproved && (
-                <div style={{ background: '#e8f6f5', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: '1.2rem' }}>💬</span>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#2a9d8f' }}>相談開始済み</div>
-                    <div style={{ fontSize: '0.75rem', color: '#5a8fa3' }}>
-                      {req.reviewedAt && new Date(req.reviewedAt).toLocaleString('ja-JP')}
+                <>
+                  <div style={{ background: '#e8f6f5', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: '1.2rem' }}>💬</span>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#2a9d8f' }}>相談開始済み</div>
+                      <div style={{ fontSize: '0.75rem', color: '#5a8fa3' }}>
+                        {req.reviewedAt && new Date(req.reviewedAt).toLocaleString('ja-JP')}
+                      </div>
                     </div>
                   </div>
-                </div>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 8, justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={() => setBlockTarget({ name: req.animalType + 'の飼い主' })}
+                      style={{ background: 'none', border: '1px solid #e5e7eb', borderRadius: 8, padding: '5px 10px', fontSize: '0.75rem', color: '#6b7280', cursor: 'pointer' }}
+                    >🚫 ブロック</button>
+                    <button
+                      onClick={() => setReportTarget({ name: req.animalType + 'の飼い主', consultationId: req.id })}
+                      style={{ background: 'none', border: '1px solid #fca5a5', borderRadius: 8, padding: '5px 10px', fontSize: '0.75rem', color: '#e05555', cursor: 'pointer' }}
+                    >🚨 通報</button>
+                  </div>
+                </>
               )}
 
               {req.status === 'rejected' && (
@@ -638,6 +654,22 @@ export default function VetDashboard() {
           </>
         )}
       </div>
+
+      {reportTarget && (
+        <ReportModal
+          targetName={reportTarget.name}
+          targetType="owner"
+          consultationId={reportTarget.consultationId}
+          onClose={() => setReportTarget(null)}
+        />
+      )}
+      {blockTarget && (
+        <BlockModal
+          targetName={blockTarget.name}
+          targetType="owner"
+          onClose={() => setBlockTarget(null)}
+        />
+      )}
     </div>
   )
 }

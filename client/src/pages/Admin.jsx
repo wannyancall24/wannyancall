@@ -2,17 +2,41 @@ import { useState, useEffect } from 'react'
 
 const ADMIN_PASSWORD = 'wannyan2024admin'
 const STORAGE_KEY = 'vetApplication'
+const REPORTS_KEY = 'userReports'
+const BANNED_KEY = 'bannedUsers'
+
+function loadReports() {
+  try { return JSON.parse(localStorage.getItem(REPORTS_KEY)) || [] } catch { return [] }
+}
+function loadBanned() {
+  try { return JSON.parse(localStorage.getItem(BANNED_KEY)) || [] } catch { return [] }
+}
 
 export default function Admin() {
   const [authed, setAuthed] = useState(false)
   const [pw, setPw] = useState('')
   const [pwError, setPwError] = useState(false)
+  const [activeTab, setActiveTab] = useState('applications')
   const [applications, setApplications] = useState([])
   const [selected, setSelected] = useState(null)
+  const [reports, setReports] = useState([])
+  const [banned, setBanned] = useState([])
+  const [banTarget, setBanTarget] = useState('')
+  const [banReason, setBanReason] = useState('')
 
   useEffect(() => {
-    if (authed) loadApplications()
+    if (authed) {
+      loadApplications()
+      setReports(loadReports())
+      setBanned(loadBanned())
+    }
   }, [authed])
+
+  useEffect(() => {
+    const handler = () => { setReports(loadReports()); setBanned(loadBanned()) }
+    window.addEventListener('reportUpdated', handler)
+    return () => window.removeEventListener('reportUpdated', handler)
+  }, [])
 
   function loadApplications() {
     const all = []
@@ -120,12 +144,12 @@ export default function Admin() {
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
         {[
-          { label: '全件', count: counts.all, color: '#2a9d8f' },
+          { label: '申請全件', count: counts.all, color: '#2a9d8f' },
           { label: '審査中', count: counts.pending, color: '#f59e0b' },
-          { label: '承認済', count: counts.approved, color: '#22c55e' },
-          { label: '否認', count: counts.rejected, color: '#e05555' },
+          { label: '通報', count: reports.filter(r => r.status === 'pending').length, color: '#e05555' },
+          { label: '停止中', count: banned.length, color: '#6b7280' },
         ].map(s => (
           <div key={s.label} style={{ background: '#fff', borderRadius: 12, padding: '12px 8px', textAlign: 'center', boxShadow: '0 2px 8px rgba(42,157,143,0.08)' }}>
             <div style={{ fontSize: '1.5rem', fontWeight: 700, color: s.color }}>{s.count}</div>
@@ -134,13 +158,146 @@ export default function Admin() {
         ))}
       </div>
 
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid #e5e7eb', overflowX: 'auto' }}>
+        {[
+          { key: 'applications', label: '獣医師審査' },
+          { key: 'reports', label: `通報${reports.filter(r=>r.status==='pending').length > 0 ? ` (${reports.filter(r=>r.status==='pending').length})` : ''}` },
+          { key: 'users', label: 'ユーザー管理' },
+        ].map(t => (
+          <button key={t.key} onClick={() => setActiveTab(t.key)} style={{
+            padding: '8px 12px', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem',
+            background: 'none', whiteSpace: 'nowrap',
+            color: activeTab === t.key ? '#2a9d8f' : '#9ca3af',
+            borderBottom: activeTab === t.key ? '2px solid #2a9d8f' : '2px solid transparent',
+          }}>{t.label}</button>
+        ))}
+      </div>
+
       {/* Refresh */}
-      <button onClick={loadApplications} style={{ background: 'none', border: '1.5px solid #2a9d8f', borderRadius: 8, padding: '6px 14px', fontSize: '0.85rem', color: '#2a9d8f', cursor: 'pointer', marginBottom: 16 }}>
+      <button onClick={() => { loadApplications(); setReports(loadReports()); setBanned(loadBanned()) }}
+        style={{ background: 'none', border: '1.5px solid #2a9d8f', borderRadius: 8, padding: '6px 14px', fontSize: '0.85rem', color: '#2a9d8f', cursor: 'pointer', marginBottom: 16 }}>
         ↻ 更新
       </button>
 
+      {/* Reports tab */}
+      {activeTab === 'reports' && (
+        <div>
+          {reports.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9ca3af' }}>
+              <div style={{ fontSize: '3rem', marginBottom: 12 }}>📭</div>
+              <div>通報はありません</div>
+            </div>
+          ) : (
+            reports.slice().reverse().map((r, i) => {
+              const isPending = r.status === 'pending'
+              return (
+                <div key={r.id} style={{ background: '#fff', borderRadius: 14, boxShadow: '0 2px 12px rgba(42,157,143,0.08)', marginBottom: 12, padding: '16px 20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#264653' }}>
+                      🚨 {r.targetName}（{r.targetType === 'vet' ? '獣医師' : '飼い主'}）
+                    </div>
+                    <span style={{
+                      background: isPending ? '#fee2e2' : '#e8f6f5',
+                      color: isPending ? '#e05555' : '#2a9d8f',
+                      padding: '3px 10px', borderRadius: 50, fontSize: '0.72rem', fontWeight: 700, flexShrink: 0
+                    }}>{isPending ? '未対応' : '対応済み'}</span>
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#374151', marginBottom: 4 }}>
+                    <strong>理由：</strong>{r.reason}
+                  </div>
+                  {r.detail && (
+                    <div style={{ fontSize: '0.82rem', color: '#6b7280', background: '#f9fafb', borderRadius: 8, padding: '8px 10px', marginBottom: 8 }}>
+                      {r.detail}
+                    </div>
+                  )}
+                  <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: isPending ? 10 : 0 }}>
+                    {new Date(r.timestamp).toLocaleString('ja-JP')}
+                  </div>
+                  {isPending && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <button
+                        onClick={() => {
+                          const updated = reports.map(rep => rep.id === r.id ? { ...rep, status: 'reviewed' } : rep)
+                          localStorage.setItem(REPORTS_KEY, JSON.stringify(updated))
+                          setReports(updated)
+                        }}
+                        style={{ background: '#e8f6f5', color: '#2a9d8f', border: 'none', borderRadius: 8, padding: '9px', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' }}
+                      >対応済みにする</button>
+                      <button
+                        onClick={() => {
+                          setBanTarget(r.targetName)
+                          setActiveTab('users')
+                        }}
+                        style={{ background: '#264653', color: '#fff', border: 'none', borderRadius: 8, padding: '9px', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' }}
+                      >ユーザー停止へ</button>
+                    </div>
+                  )}
+                </div>
+              )
+            })
+          )}
+        </div>
+      )}
+
+      {/* Users tab */}
+      {activeTab === 'users' && (
+        <div>
+          {/* Ban form */}
+          <div style={{ background: '#fff', borderRadius: 14, boxShadow: '0 2px 12px rgba(42,157,143,0.08)', padding: '16px 20px', marginBottom: 16 }}>
+            <h3 style={{ fontWeight: 700, fontSize: '0.95rem', color: '#264653', marginBottom: 12 }}>⛔ ユーザーを強制停止</h3>
+            <div className="form-group">
+              <label className="form-label">ユーザー名・メールアドレス</label>
+              <input className="form-input" type="text" placeholder="例：田中 健一 / vet@example.com"
+                value={banTarget} onChange={e => setBanTarget(e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">停止理由</label>
+              <input className="form-input" type="text" placeholder="例：利用規約違反・通報対応"
+                value={banReason} onChange={e => setBanReason(e.target.value)} />
+            </div>
+            <button
+              onClick={() => {
+                if (!banTarget.trim()) return
+                const entry = { id: Date.now(), userName: banTarget.trim(), reason: banReason.trim() || '—', bannedAt: new Date().toISOString() }
+                const updated = [...loadBanned(), entry]
+                localStorage.setItem(BANNED_KEY, JSON.stringify(updated))
+                setBanned(updated)
+                setBanTarget('')
+                setBanReason('')
+              }}
+              style={{ background: '#264653', color: '#fff', border: 'none', borderRadius: 10, padding: '11px', width: '100%', fontWeight: 700, cursor: 'pointer' }}
+            >停止する</button>
+          </div>
+
+          {/* Banned list */}
+          <h3 style={{ fontWeight: 700, fontSize: '0.95rem', color: '#264653', marginBottom: 10 }}>停止中ユーザー一覧</h3>
+          {banned.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '30px 20px', color: '#9ca3af', fontSize: '0.85rem' }}>停止中のユーザーはいません</div>
+          ) : (
+            banned.slice().reverse().map(b => (
+              <div key={b.id} style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', padding: '14px 16px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#264653' }}>⛔ {b.userName}</div>
+                  <div style={{ fontSize: '0.78rem', color: '#6b7280', marginTop: 2 }}>理由：{b.reason}</div>
+                  <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>{new Date(b.bannedAt).toLocaleString('ja-JP')}</div>
+                </div>
+                <button
+                  onClick={() => {
+                    const updated = banned.filter(u => u.id !== b.id)
+                    localStorage.setItem(BANNED_KEY, JSON.stringify(updated))
+                    setBanned(updated)
+                  }}
+                  style={{ background: 'none', border: '1px solid #e5e7eb', borderRadius: 8, padding: '5px 10px', fontSize: '0.75rem', color: '#6b7280', cursor: 'pointer', flexShrink: 0 }}
+                >停止解除</button>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
       {/* Application list */}
-      {applications.length === 0 ? (
+      {activeTab === 'applications' && (applications.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: '#6b7280' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
           <div>申請はまだありません</div>
@@ -250,7 +407,7 @@ export default function Admin() {
             )
           })}
         </div>
-      )}
+      ))}
     </div>
   )
 }

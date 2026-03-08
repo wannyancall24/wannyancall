@@ -20,6 +20,9 @@ export default function MyPage() {
   const [activeTab, setActiveTab] = useState('profile')
   const [editMode, setEditMode] = useState(false)
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
+  const [showWithdrawDialog, setShowWithdrawDialog] = useState(false)
+  const [withdrawStep, setWithdrawStep] = useState(1)
+  const [withdrawDone, setWithdrawDone] = useState(false)
   const [expandedPet, setExpandedPet] = useState(null)
 
   const tabs = [
@@ -128,6 +131,14 @@ export default function MyPage() {
               style={{ width: '100%', padding: '14px', borderRadius: 50, border: '1.5px solid #fee2e2', background: '#fff', color: '#ef4444', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', marginTop: 4 }}
             >ログアウト</button>
 
+            <div style={{ marginTop: 32, borderTop: '1px solid #e5e7eb', paddingTop: 20 }}>
+              <p style={{ fontSize: '0.82rem', color: '#9ca3af', marginBottom: 10 }}>アカウントを削除する場合は退会手続きを行ってください。</p>
+              <button
+                onClick={() => { setShowWithdrawDialog(true); setWithdrawStep(1); setWithdrawDone(false) }}
+                style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: '0.82rem', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+              >退会する</button>
+            </div>
+
             {showLogoutDialog && (
               <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 24 }}>
                 <div style={{ background: '#fff', borderRadius: 20, padding: 24, width: '100%', maxWidth: 340, textAlign: 'center' }}>
@@ -136,6 +147,56 @@ export default function MyPage() {
                   <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: 20 }}>ログアウトすると再度ログインが必要です。</p>
                   <button className="btn-primary" style={{ background: '#ef4444', marginBottom: 10 }} onClick={() => navigate('/auth')}>ログアウト</button>
                   <button className="btn-secondary" onClick={() => setShowLogoutDialog(false)}>キャンセル</button>
+                </div>
+              </div>
+            )}
+
+            {showWithdrawDialog && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 24 }}>
+                <div style={{ background: '#fff', borderRadius: 20, padding: 24, width: '100%', maxWidth: 340 }}>
+                  {withdrawDone ? (
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>👋</div>
+                      <h3 style={{ fontWeight: 800, marginBottom: 8 }}>退会が完了しました</h3>
+                      <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: 20, lineHeight: 1.6 }}>
+                        ご利用ありがとうございました。<br />アカウントデータは削除されました。
+                      </p>
+                      <button className="btn-primary" style={{ background: '#2a9d8f' }} onClick={() => navigate('/')}>トップへ戻る</button>
+                    </div>
+                  ) : withdrawStep === 1 ? (
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>⚠️</div>
+                      <h3 style={{ fontWeight: 800, marginBottom: 8 }}>退会しますか？</h3>
+                      <div style={{ background: '#fee2e2', borderRadius: 10, padding: '12px 14px', marginBottom: 16, textAlign: 'left' }}>
+                        <p style={{ fontSize: '0.83rem', color: '#dc2626', fontWeight: 600, marginBottom: 6 }}>退会すると以下のデータが削除されます：</p>
+                        <ul style={{ fontSize: '0.82rem', color: '#dc2626', paddingLeft: 18, lineHeight: 1.8 }}>
+                          <li>アカウント情報</li>
+                          <li>ペット情報</li>
+                          <li>相談履歴</li>
+                          <li>プラン情報</li>
+                        </ul>
+                      </div>
+                      <p style={{ fontSize: '0.82rem', color: '#6b7280', marginBottom: 20 }}>この操作は取り消せません。</p>
+                      <button
+                        style={{ width: '100%', padding: '13px', borderRadius: 50, border: 'none', background: '#dc2626', color: '#fff', fontWeight: 700, fontSize: '0.92rem', cursor: 'pointer', marginBottom: 10 }}
+                        onClick={() => setWithdrawStep(2)}
+                      >次へ（最終確認）</button>
+                      <button className="btn-secondary" onClick={() => setShowWithdrawDialog(false)}>キャンセル</button>
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🔐</div>
+                      <h3 style={{ fontWeight: 800, marginBottom: 8 }}>最終確認</h3>
+                      <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: 20, lineHeight: 1.6 }}>
+                        本当に退会しますか？<br />アカウントは完全に削除されます。
+                      </p>
+                      <button
+                        style={{ width: '100%', padding: '13px', borderRadius: 50, border: 'none', background: '#dc2626', color: '#fff', fontWeight: 700, fontSize: '0.92rem', cursor: 'pointer', marginBottom: 10 }}
+                        onClick={() => { localStorage.clear(); setWithdrawDone(true) }}
+                      >退会する</button>
+                      <button className="btn-secondary" onClick={() => setWithdrawStep(1)}>戻る</button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

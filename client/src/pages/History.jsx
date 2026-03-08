@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import ReportModal from '../components/ReportModal'
+import BlockModal from '../components/BlockModal'
 
 const HISTORY = [
   { id: 1, vetId: 1, vet: '田中 健一', photo: '👨‍⚕️', specialty: '内科・皮膚科', date: '2024-12-10', time: '21:30', duration: 15, price: 4200, status: '完了', topic: '皮膚のかゆみについて', pet: 'ポチ', timeType: '深夜' },
@@ -23,6 +25,8 @@ const TIME_TYPE_STYLE = {
 export default function History() {
   const navigate = useNavigate()
   const [filter, setFilter] = useState('all')
+  const [reportTarget, setReportTarget] = useState(null) // { name, consultationId }
+  const [blockTarget, setBlockTarget] = useState(null)   // { name }
 
   const filtered = filter === 'all' ? HISTORY : HISTORY.filter(h => h.status === filter)
   const totalSpent = HISTORY.filter(h => h.status === '完了').reduce((s, h) => s + h.price, 0)
@@ -72,7 +76,7 @@ export default function History() {
             const st = STATUS_STYLE[h.status] || STATUS_STYLE['完了']
             const tt = TIME_TYPE_STYLE[h.timeType]
             return (
-              <div key={h.id} className="card" style={{ marginBottom: 12, cursor: h.status === '完了' ? 'pointer' : 'default' }}>
+              <div key={h.id} className="card" style={{ marginBottom: 12 }}>
                 {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -104,23 +108,24 @@ export default function History() {
                 {/* Actions */}
                 {h.status === '完了' && (
                   <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                    <button
-                      className="btn-secondary"
-                      style={{ fontSize: '0.82rem', padding: '8px 0' }}
-                      onClick={() => navigate(`/booking/${h.vetId}`)}
-                    >再度相談する</button>
-                    <button
-                      className="btn-outline"
-                      style={{ fontSize: '0.82rem', padding: '8px 0' }}
-                      onClick={() => navigate(`/vet/${h.vetId}`)}
-                    >プロフィール</button>
+                    <button className="btn-secondary" style={{ fontSize: '0.82rem', padding: '8px 0' }}
+                      onClick={() => navigate(`/booking/${h.vetId}`)}>再度相談する</button>
+                    <button className="btn-outline" style={{ fontSize: '0.82rem', padding: '8px 0' }}
+                      onClick={() => navigate(`/vet/${h.vetId}`)}>プロフィール</button>
                   </div>
                 )}
-                {h.status === '予約済み' && (
-                  <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                    <div style={{ flex: 1, background: '#fef3c7', borderRadius: 8, padding: '8px 12px', fontSize: '0.8rem', color: '#d97706', fontWeight: 600 }}>
-                      📩 当日Google MeetのURLをメール送付します
-                    </div>
+
+                {/* 通報・ブロック */}
+                {h.status === '完了' && (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 8, justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={() => setBlockTarget({ name: h.vet })}
+                      style={{ background: 'none', border: '1px solid #e5e7eb', borderRadius: 8, padding: '5px 10px', fontSize: '0.75rem', color: '#6b7280', cursor: 'pointer' }}
+                    >🚫 ブロック</button>
+                    <button
+                      onClick={() => setReportTarget({ name: h.vet, consultationId: h.id })}
+                      style={{ background: 'none', border: '1px solid #fca5a5', borderRadius: 8, padding: '5px 10px', fontSize: '0.75rem', color: '#e05555', cursor: 'pointer' }}
+                    >🚨 通報</button>
                   </div>
                 )}
               </div>
@@ -128,6 +133,22 @@ export default function History() {
           })
         )}
       </div>
+
+      {reportTarget && (
+        <ReportModal
+          targetName={reportTarget.name}
+          targetType="vet"
+          consultationId={reportTarget.consultationId}
+          onClose={() => setReportTarget(null)}
+        />
+      )}
+      {blockTarget && (
+        <BlockModal
+          targetName={blockTarget.name}
+          targetType="vet"
+          onClose={() => setBlockTarget(null)}
+        />
+      )}
     </div>
   )
 }
