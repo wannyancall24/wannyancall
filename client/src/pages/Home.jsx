@@ -14,7 +14,7 @@ export default function Home() {
       {/* Hero */}
       <section style={{
         background: 'linear-gradient(135deg, #2a9d8f 0%, #21867a 100%)',
-        padding: '36px 20px 40px', color: '#fff', position: 'relative', overflow: 'hidden'
+        padding: '20px 20px 24px', color: '#fff', position: 'relative', overflow: 'hidden'
       }}>
         <div style={{
           position: 'absolute', top: -40, right: -40,
@@ -22,7 +22,7 @@ export default function Home() {
           background: 'rgba(255,255,255,0.08)'
         }} />
         <div style={{ position: 'relative' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <span style={{
               background: '#22c55e', color: '#fff',
               padding: '4px 12px', borderRadius: 50, fontSize: '0.8rem', fontWeight: 700,
@@ -32,17 +32,17 @@ export default function Home() {
               オンライン獣医師 12名
             </span>
           </div>
-          <h1 style={{ fontSize: '1.55rem', fontWeight: 800, lineHeight: 1.4, marginBottom: 12 }}>
+          <h1 style={{ fontSize: '1.4rem', fontWeight: 800, lineHeight: 1.35, marginBottom: 8 }}>
             深夜でも、田舎でも<br />獣医師に相談できる
           </h1>
-          <p style={{ fontSize: '0.95rem', opacity: 0.9, marginBottom: 24, lineHeight: 1.6 }}>
-            24時間365日、自宅から獣医師に<br />オンラインで相談。すぐつながる。
+          <p style={{ fontSize: '0.88rem', opacity: 0.9, marginBottom: 16, lineHeight: 1.5 }}>
+            24時間365日、自宅から獣医師に相談。すぐつながる。
           </p>
-          <button className="btn-primary" style={{ background: '#f4a261', fontSize: '1.05rem', padding: '16px' }}
+          <button className="btn-primary" style={{ background: '#f4a261', fontSize: '1rem', padding: '13px' }}
             onClick={() => navigate('/find')}>
             今すぐ獣医師を探す →
           </button>
-          <p style={{ fontSize: '0.8rem', opacity: 0.8, marginTop: 10, textAlign: 'center' }}>
+          <p style={{ fontSize: '0.78rem', opacity: 0.8, marginTop: 8, textAlign: 'center' }}>
             ※初回相談 システム利用料のみ
           </p>
         </div>
