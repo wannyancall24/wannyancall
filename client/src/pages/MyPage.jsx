@@ -1,117 +1,266 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+
+const PROFILE = {
+  name: '山田 花子',
+  email: 'hanako@example.com',
+  tel: '090-1234-5678',
+  address: '東京都世田谷区〇〇',
+  plan: 'bought', // 'bought' | 'free'
+  planPurchasedAt: '2024-11-01',
+}
+
+const PETS = [
+  { id: 1, name: 'ポチ', species: '犬', breed: 'トイプードル', age: 3, weight: '3.2kg', icon: '🐕', birthday: '2021-04-10', note: 'アレルギー：なし' },
+  { id: 2, name: 'みけ', species: '猫', breed: 'スコティッシュフォールド', age: 5, weight: '4.1kg', icon: '🐈', birthday: '2019-08-22', note: 'アレルギー：魚類' },
+]
 
 export default function MyPage() {
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('profile')
+  const [editMode, setEditMode] = useState(false)
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false)
+  const [expandedPet, setExpandedPet] = useState(null)
+
+  const tabs = [
+    { key: 'profile', label: '👤 プロフィール' },
+    { key: 'pets', label: '🐾 ペット' },
+    { key: 'plan', label: '💳 プラン' },
+  ]
 
   return (
     <div className="page">
+      {/* Header Banner */}
+      <div style={{ background: 'linear-gradient(135deg, #2a9d8f, #21867a)', padding: '24px 20px 32px', color: '#fff', textAlign: 'center' }}>
+        <div style={{
+          width: 76, height: 76, borderRadius: '50%',
+          background: 'rgba(255,255,255,0.2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '2.6rem', margin: '0 auto 12px',
+          border: '2.5px solid rgba(255,255,255,0.45)',
+        }}>🧑</div>
+        <h2 style={{ fontWeight: 800, fontSize: '1.15rem', marginBottom: 4 }}>{PROFILE.name}</h2>
+        <p style={{ opacity: 0.85, fontSize: '0.85rem', marginBottom: 10 }}>{PROFILE.email}</p>
+        {PROFILE.plan === 'bought' && (
+          <span style={{ background: '#f4a261', padding: '4px 14px', borderRadius: 50, fontSize: '0.78rem', fontWeight: 700 }}>
+            ⭐ 買い切りプラン
+          </span>
+        )}
+      </div>
+
       {/* Tabs */}
-      <div style={{ display: 'flex', padding: '16px 16px 0', gap: 8, borderBottom: '1px solid #e5e7eb', background: '#fff' }}>
-        {[
-          { key: 'profile', label: 'プロフィール' },
-          { key: 'pets', label: 'ペット情報' },
-          { key: 'plan', label: 'プラン' },
-        ].map(t => (
+      <div style={{ display: 'flex', background: '#fff', borderBottom: '1px solid #e5e7eb', position: 'sticky', top: 0, zIndex: 5 }}>
+        {tabs.map(t => (
           <button key={t.key} onClick={() => setActiveTab(t.key)} style={{
-            padding: '8px 16px', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem',
-            background: 'none', color: activeTab === t.key ? '#2a9d8f' : '#9ca3af',
-            borderBottom: activeTab === t.key ? '2px solid #2a9d8f' : '2px solid transparent',
-            transition: 'all 0.2s'
+            flex: 1, padding: '12px 4px', border: 'none', cursor: 'pointer',
+            fontWeight: 600, fontSize: '0.78rem', background: 'none',
+            color: activeTab === t.key ? '#2a9d8f' : '#9ca3af',
+            borderBottom: activeTab === t.key ? '2.5px solid #2a9d8f' : '2.5px solid transparent',
+            transition: 'all 0.2s',
           }}>{t.label}</button>
         ))}
       </div>
 
       <div style={{ padding: 16 }}>
+
+        {/* ── プロフィールタブ ── */}
         {activeTab === 'profile' && (
           <>
-            <div style={{ textAlign: 'center', padding: '24px 0' }}>
-              <div style={{
-                width: 80, height: 80, borderRadius: '50%', background: '#e8f6f5',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '2.5rem', margin: '0 auto 12px'
-              }}>🧑</div>
-              <h2 style={{ fontWeight: 700, marginBottom: 4 }}>山田 花子</h2>
-              <p style={{ color: '#6b7280', fontSize: '0.9rem' }}>hanako@example.com</p>
+            <div className="card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <h3 style={{ fontWeight: 700, fontSize: '0.95rem' }}>基本情報</h3>
+                <button onClick={() => setEditMode(v => !v)} style={{
+                  background: editMode ? '#2a9d8f' : '#e8f6f5',
+                  color: editMode ? '#fff' : '#2a9d8f',
+                  border: 'none', borderRadius: 50, padding: '5px 14px',
+                  fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer',
+                }}>
+                  {editMode ? '保存' : '編集'}
+                </button>
+              </div>
+              {[
+                { label: 'お名前', value: PROFILE.name, type: 'text' },
+                { label: 'メール', value: PROFILE.email, type: 'email' },
+                { label: '電話番号', value: PROFILE.tel, type: 'tel' },
+                { label: '住所', value: PROFILE.address, type: 'text' },
+              ].map((item, i, arr) => (
+                <div key={item.label} style={{ padding: '10px 0', borderBottom: i < arr.length - 1 ? '1px solid #e5e7eb' : 'none' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: 4 }}>{item.label}</div>
+                  {editMode ? (
+                    <input className="form-input" type={item.type} defaultValue={item.value} style={{ padding: '8px 12px', fontSize: '0.9rem' }} />
+                  ) : (
+                    <div style={{ fontWeight: 600, fontSize: '0.92rem', color: '#264653' }}>{item.value}</div>
+                  )}
+                </div>
+              ))}
             </div>
 
+            {/* Notification settings */}
             <div className="card">
+              <h3 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: 12 }}>🔔 通知設定</h3>
               {[
-                { label: '名前', value: '山田 花子' },
-                { label: '電話番号', value: '090-1234-5678' },
-                { label: 'メール', value: 'hanako@example.com' },
-                { label: '住所', value: '東京都世田谷区〇〇' },
+                { label: '予約確認メール', enabled: true },
+                { label: 'Google Meetリンク通知', enabled: true },
+                { label: 'キャンペーン・お知らせ', enabled: false },
               ].map((item, i, arr) => (
                 <div key={item.label} style={{
-                  display: 'flex', justifyContent: 'space-between', padding: '12px 0',
-                  borderBottom: i < arr.length - 1 ? '1px solid #e5e7eb' : 'none', fontSize: '0.9rem'
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '10px 0', borderBottom: i < arr.length - 1 ? '1px solid #e5e7eb' : 'none', fontSize: '0.9rem',
                 }}>
-                  <span style={{ color: '#6b7280' }}>{item.label}</span>
-                  <span style={{ fontWeight: 600 }}>{item.value}</span>
+                  <span style={{ color: '#264653' }}>{item.label}</span>
+                  <div style={{
+                    width: 40, height: 22, borderRadius: 50, position: 'relative', cursor: 'pointer',
+                    background: item.enabled ? '#2a9d8f' : '#e5e7eb', transition: 'background 0.2s',
+                  }}>
+                    <div style={{
+                      position: 'absolute', top: 3, left: item.enabled ? 20 : 3,
+                      width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                      transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                    }} />
+                  </div>
                 </div>
               ))}
             </div>
-            <button className="btn-outline" style={{ marginTop: 8 }}>プロフィールを編集</button>
-            <button style={{ width: '100%', padding: '12px', borderRadius: 50, border: 'none', cursor: 'pointer', color: '#ef4444', background: 'none', fontSize: '0.9rem', marginTop: 8 }}>ログアウト</button>
+
+            {/* Logout */}
+            <button
+              onClick={() => setShowLogoutDialog(true)}
+              style={{ width: '100%', padding: '14px', borderRadius: 50, border: '1.5px solid #fee2e2', background: '#fff', color: '#ef4444', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', marginTop: 4 }}
+            >ログアウト</button>
+
+            {showLogoutDialog && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 24 }}>
+                <div style={{ background: '#fff', borderRadius: 20, padding: 24, width: '100%', maxWidth: 340, textAlign: 'center' }}>
+                  <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🚪</div>
+                  <h3 style={{ fontWeight: 800, marginBottom: 8 }}>ログアウトしますか？</h3>
+                  <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: 20 }}>ログアウトすると再度ログインが必要です。</p>
+                  <button className="btn-primary" style={{ background: '#ef4444', marginBottom: 10 }} onClick={() => navigate('/auth')}>ログアウト</button>
+                  <button className="btn-secondary" onClick={() => setShowLogoutDialog(false)}>キャンセル</button>
+                </div>
+              </div>
+            )}
           </>
         )}
 
+        {/* ── ペット情報タブ ── */}
         {activeTab === 'pets' && (
           <>
-            {[
-              { name: 'ポチ', species: '犬', breed: 'トイプードル', age: 3, weight: '3.2kg', icon: '🐕' },
-              { name: 'みけ', species: '猫', breed: 'スコティッシュフォールド', age: 5, weight: '4.1kg', icon: '🐈' },
-            ].map(pet => (
-              <div key={pet.name} className="card" style={{ marginBottom: 12 }}>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
-                  <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#e8f6f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>{pet.icon}</div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '1.05rem' }}>{pet.name}</div>
-                    <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>{pet.species}・{pet.breed}</div>
+            {PETS.map(pet => (
+              <div key={pet.id} className="card" style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer' }}
+                  onClick={() => setExpandedPet(expandedPet === pet.id ? null : pet.id)}>
+                  <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#e8f6f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', flexShrink: 0 }}>{pet.icon}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: '1rem' }}>{pet.name}</div>
+                    <div style={{ fontSize: '0.82rem', color: '#6b7280' }}>{pet.species}・{pet.breed}</div>
                   </div>
+                  <span style={{ color: '#9ca3af', fontSize: '1rem' }}>{expandedPet === pet.id ? '▲' : '▼'}</span>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <div style={{ flex: 1, background: '#f9fafb', borderRadius: 8, padding: '10px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>年齢</div>
-                    <div style={{ fontWeight: 700 }}>{pet.age}歳</div>
-                  </div>
-                  <div style={{ flex: 1, background: '#f9fafb', borderRadius: 8, padding: '10px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>体重</div>
-                    <div style={{ fontWeight: 700 }}>{pet.weight}</div>
-                  </div>
+
+                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                  {[
+                    { label: '年齢', value: `${pet.age}歳` },
+                    { label: '体重', value: pet.weight },
+                    { label: '誕生日', value: pet.birthday },
+                  ].map(s => (
+                    <div key={s.label} style={{ flex: 1, background: '#f9fafb', borderRadius: 8, padding: '8px 4px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginBottom: 3 }}>{s.label}</div>
+                      <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#264653' }}>{s.value}</div>
+                    </div>
+                  ))}
                 </div>
+
+                {expandedPet === pet.id && (
+                  <div style={{ marginTop: 12, padding: '10px 12px', background: '#f9fafb', borderRadius: 10, fontSize: '0.85rem', color: '#264653' }}>
+                    <span style={{ color: '#9ca3af', fontSize: '0.78rem' }}>メモ：</span>　{pet.note}
+                    <div style={{ marginTop: 10 }}>
+                      <button className="btn-secondary" style={{ padding: '8px 0', fontSize: '0.82rem' }}>ペット情報を編集</button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
-            <button className="btn-secondary" style={{ marginTop: 4 }}>+ ペットを追加</button>
+            <button className="btn-secondary" style={{ marginTop: 4 }}>＋ ペットを追加</button>
           </>
         )}
 
+        {/* ── プランタブ ── */}
         {activeTab === 'plan' && (
           <>
-            <div style={{ background: 'linear-gradient(135deg, #264653, #2a9d8f)', borderRadius: 16, padding: 24, color: '#fff', marginBottom: 16, textAlign: 'center' }}>
-              <div style={{ fontSize: '0.9rem', opacity: 0.8, marginBottom: 8 }}>現在のプラン</div>
-              <div style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: 4 }}>買い切りプラン</div>
-              <div style={{ fontSize: '0.85rem', opacity: 0.9 }}>¥14,800（購入済み）</div>
-              <div style={{ marginTop: 16, background: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: '10px 16px' }}>
-                <div style={{ fontSize: '0.85rem' }}>購入日：2024-11-01</div>
-              </div>
-            </div>
+            {PROFILE.plan === 'bought' ? (
+              <>
+                {/* Active plan card */}
+                <div style={{ background: 'linear-gradient(135deg, #264653 0%, #2a9d8f 100%)', borderRadius: 20, padding: '24px 20px', color: '#fff', marginBottom: 16, position: 'relative', overflow: 'hidden' }}>
+                  <div style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                    <div>
+                      <div style={{ fontSize: '0.8rem', opacity: 0.8, marginBottom: 4 }}>現在のプラン</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 900 }}>買い切りプラン</div>
+                    </div>
+                    <span style={{ background: '#f4a261', padding: '4px 12px', borderRadius: 50, fontSize: '0.75rem', fontWeight: 800 }}>有効</span>
+                  </div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: 4 }}>¥14,800</div>
+                  <div style={{ opacity: 0.8, fontSize: '0.82rem' }}>購入日：{PROFILE.planPurchasedAt}</div>
+                  <div style={{ marginTop: 16, background: 'rgba(255,255,255,0.15)', borderRadius: 10, padding: '10px 14px', fontSize: '0.82rem' }}>
+                    💡 システム利用料・夜間・深夜割増がすべて永久無料
+                  </div>
+                </div>
 
+                {/* Benefits */}
+                <div className="card">
+                  <h3 style={{ fontWeight: 700, marginBottom: 12 }}>✨ プラン特典</h3>
+                  {[
+                    { icon: '💴', label: 'システム利用料', value: '永久無料', highlight: true },
+                    { icon: '🌆', label: '夜間割増（20〜22時）', value: '無料', highlight: true },
+                    { icon: '🌙', label: '深夜割増（22〜8時）', value: '無料', highlight: true },
+                    { icon: '⚡', label: '優先予約', value: '対応', highlight: false },
+                    { icon: '📞', label: '専用サポート', value: '対応', highlight: false },
+                  ].map((b, i, arr) => (
+                    <div key={b.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: i < arr.length - 1 ? '1px solid #e5e7eb' : 'none' }}>
+                      <span style={{ fontSize: '0.9rem', color: '#264653' }}>{b.icon} {b.label}</span>
+                      <span style={{ fontWeight: 700, color: b.highlight ? '#2a9d8f' : '#264653', fontSize: '0.88rem' }}>{b.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Free plan */}
+                <div className="card" style={{ textAlign: 'center', padding: '20px' }}>
+                  <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>📋</div>
+                  <h3 style={{ fontWeight: 700, marginBottom: 4 }}>無料プラン</h3>
+                  <p style={{ fontSize: '0.85rem', color: '#6b7280' }}>現在は無料プランをご利用中です</p>
+                </div>
+
+                {/* Upgrade */}
+                <div style={{ background: 'linear-gradient(135deg, #264653 0%, #2a9d8f 100%)', borderRadius: 20, padding: '24px 20px', color: '#fff', marginBottom: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <span style={{ background: '#f4a261', padding: '3px 10px', borderRadius: 50, fontSize: '0.75rem', fontWeight: 700 }}>期間限定</span>
+                    <span style={{ fontSize: '0.85rem', opacity: 0.7, textDecoration: 'line-through' }}>¥19,800</span>
+                  </div>
+                  <div style={{ fontSize: '2rem', fontWeight: 900, marginBottom: 4 }}>¥14,800 <span style={{ fontSize: '1rem' }}>買い切り</span></div>
+                  <p style={{ opacity: 0.85, fontSize: '0.85rem', marginBottom: 16 }}>一度の購入で、割増料金が永久に無料に</p>
+                  <button className="btn-primary" style={{ background: '#f4a261' }}>このプランを購入する</button>
+                </div>
+              </>
+            )}
+
+            {/* Payment history */}
             <div className="card">
-              <h3 style={{ fontWeight: 700, marginBottom: 12 }}>プラン特典</h3>
+              <h3 style={{ fontWeight: 700, marginBottom: 12, fontSize: '0.95rem' }}>💳 支払い履歴</h3>
               {[
-                '✅ システム利用料 永久無料',
-                '✅ 夜間割増なし',
-                '✅ 深夜割増なし',
-                '✅ 優先予約',
-              ].map(f => (
-                <div key={f} style={{ padding: '8px 0', borderBottom: '1px solid #e5e7eb', fontSize: '0.9rem' }}>{f}</div>
+                { date: '2024-11-01', label: '買い切りプラン購入', amount: 14800 },
+                { date: '2024-12-10', label: '相談料（田中 健一 獣医師）', amount: 4200 },
+                { date: '2024-11-25', label: '相談料（鈴木 麻衣 獣医師）', amount: 3800 },
+              ].map((p, i, arr) => (
+                <div key={p.date + p.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: i < arr.length - 1 ? '1px solid #e5e7eb' : 'none', fontSize: '0.84rem' }}>
+                  <div>
+                    <div style={{ color: '#264653', fontWeight: 600 }}>{p.label}</div>
+                    <div style={{ color: '#9ca3af', fontSize: '0.75rem', marginTop: 1 }}>{p.date}</div>
+                  </div>
+                  <span style={{ fontWeight: 700, color: '#264653' }}>¥{p.amount.toLocaleString()}</span>
+                </div>
               ))}
-            </div>
-
-            <div className="card" style={{ background: '#fef3c7', border: '1px solid #fcd34d' }}>
-              <p style={{ fontSize: '0.85rem', color: '#92400e', textAlign: 'center' }}>
-                🎁 <strong>期間限定</strong>：買い切りプラン ¥19,800 → <strong>¥14,800</strong>
-              </p>
             </div>
           </>
         )}

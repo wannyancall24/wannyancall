@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 
 const VETS = [
   { id: 1, name: '田中 健一', specialty: '内科・皮膚科', rating: 4.9, count: 312, photo: '👨‍⚕️', tags: ['犬', '猫'], available: true },
@@ -121,7 +121,7 @@ export default function Home() {
             <span style={{ fontSize: '0.85rem', opacity: 0.8, textDecoration: 'line-through' }}>¥19,800</span>
           </div>
           <div style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: 4 }}>¥14,800 <span style={{ fontSize: '1rem' }}>買い切り</span></div>
-          <p style={{ fontSize: '0.85rem', opacity: 0.9 }}>システム利用料・夜間・深夜割増 すべて込み</p>
+          <p style={{ fontSize: '0.85rem', opacity: 0.9 }}>システム利用料（毎回¥800）が無料になるプラン</p>
           <button className="btn-primary" style={{ marginTop: 16, background: '#f4a261' }}>このプランを購入する</button>
         </div>
       </section>
@@ -134,8 +134,8 @@ export default function Home() {
             <thead>
               <tr>
                 <th style={{ textAlign: 'left', padding: '8px 4px', color: '#6b7280', fontWeight: 600, borderBottom: '2px solid #e5e7eb', width: '40%' }}>項目</th>
-                <th style={{ textAlign: 'center', padding: '8px 4px', color: '#dc2626', fontWeight: 700, borderBottom: '2px solid #e5e7eb', width: '30%' }}>🏥 対面</th>
-                <th style={{ textAlign: 'center', padding: '8px 4px', color: '#2a9d8f', fontWeight: 700, borderBottom: '2px solid #e5e7eb', width: '30%' }}>💻 オンライン</th>
+                <th style={{ textAlign: 'left', padding: '8px 4px', color: '#2a9d8f', fontWeight: 700, borderBottom: '2px solid #e5e7eb', width: '30%' }}>🏥 対面</th>
+                <th style={{ textAlign: 'left', padding: '8px 4px', color: '#2a9d8f', fontWeight: 700, borderBottom: '2px solid #e5e7eb', width: '30%' }}>💻 オンライン</th>
               </tr>
             </thead>
             <tbody>
@@ -148,20 +148,25 @@ export default function Home() {
               ].map((row, i) => (
                 <tr key={row.label} style={{ background: i % 2 === 0 ? '#f9fafb' : '#fff' }}>
                   <td style={{ padding: '10px 4px', color: '#264653' }}>{row.label}</td>
-                  <td style={{ padding: '10px 4px', textAlign: 'center', color: '#dc2626', fontWeight: 600 }}>{row.face}</td>
-                  <td style={{ padding: '10px 4px', textAlign: 'center', color: '#2a9d8f', fontWeight: 700 }}>{row.online}</td>
+                  <td style={{ padding: '10px 4px', textAlign: 'left', color: '#2a9d8f', fontWeight: 600 }}>{row.face}</td>
+                  <td style={{ padding: '10px 4px', textAlign: 'left', color: '#2a9d8f', fontWeight: 700 }}>{row.online}</td>
                 </tr>
               ))}
               <tr style={{ borderTop: '2px solid #2a9d8f', background: '#e8f6f5' }}>
                 <td style={{ padding: '12px 4px', fontWeight: 800, color: '#264653' }}>合計</td>
-                <td style={{ padding: '12px 4px', textAlign: 'center', fontWeight: 800, color: '#dc2626' }}>115〜180分</td>
-                <td style={{ padding: '12px 4px', textAlign: 'center', fontWeight: 800, color: '#2a9d8f' }}>大幅短縮</td>
+                <td style={{ padding: '12px 4px', textAlign: 'left', fontWeight: 800, color: '#2a9d8f' }}>115〜180分</td>
+                <td style={{ padding: '12px 4px', textAlign: 'left', fontWeight: 800, color: '#2a9d8f' }}>
+                  <span style={{ display: 'inline-block' }}>
+                    <div>大幅短縮</div>
+                    <div style={{ width: '100%', height: 2, background: '#ff9966', marginTop: 4 }} />
+                  </span>
+                </td>
               </tr>
             </tbody>
           </table>
           <div style={{ marginTop: 16, background: '#e8f6f5', borderRadius: 10, padding: '12px 16px', textAlign: 'center' }}>
-            <p style={{ fontWeight: 700, color: '#2a9d8f', fontSize: '0.95rem' }}>
-              移動・待ち時間ゼロで、ペットのそばで相談できます
+            <p style={{ fontWeight: 700, color: '#5a85a0', fontSize: '0.95rem' }}>
+              移動・待ち時間を大幅に削減。<br />ペットのそばで相談できます。
             </p>
           </div>
         </div>
@@ -245,34 +250,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Legal */}
-      <section className="section" style={{ paddingTop: 0 }}>
-        <h2 className="section-title">📄 特定商取引法に基づく表記</h2>
-        <div className="card">
-          {[
-            { label: '販売業者', value: '株式会社WanNyan' },
-            { label: '代表者', value: '山田 次郎' },
-            { label: '所在地', value: '東京都渋谷区〇〇1-2-3' },
-            { label: '電話番号', value: '03-XXXX-XXXX（平日10〜18時）' },
-            { label: 'メール', value: 'support@wannyancall24.jp' },
-            { label: '販売価格', value: '各サービスページに記載の価格' },
-            { label: '支払方法', value: 'クレジットカード（Stripe）' },
-            { label: 'サービス提供', value: '予約確定後、即時提供' },
-            { label: 'キャンセル', value: '24時間前まで全額返金' },
-          ].map((item, i, arr) => (
-            <div key={item.label} style={{
-              display: 'flex', gap: 8, padding: '10px 0',
-              borderBottom: i < arr.length - 1 ? '1px solid #e5e7eb' : 'none',
-              fontSize: '0.85rem'
-            }}>
-              <span style={{ color: '#6b7280', minWidth: 100, flexShrink: 0 }}>{item.label}</span>
-              <span style={{ color: '#264653' }}>{item.value}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <div style={{ height: 16 }} />
+      {/* Footer */}
+      <footer style={{ borderTop: '1px solid #e5e7eb', padding: '20px 16px', textAlign: 'center' }}>
+        <p style={{ fontSize: '0.8rem', color: '#9ca3af', marginBottom: 10 }}>© 2024 WanNyanCall24</p>
+        <Link to="/legal" style={{ fontSize: '0.82rem', color: '#2a9d8f', fontWeight: 600, textDecoration: 'none' }}>
+          📄 特定商取引法に基づく表記
+        </Link>
+      </footer>
     </div>
   )
 }
