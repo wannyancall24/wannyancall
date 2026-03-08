@@ -388,11 +388,10 @@ export default function Home() {
         <h2 className="section-title">📋 相談の流れ</h2>
         <div className="card">
           {[
-            { step: 1, icon: '📅', title: '予約する', desc: '獣医師を選んで日時を予約' },
-            { step: 2, icon: '📩', title: '確定通知', desc: '予約確認メールが届きます' },
-            { step: 3, icon: '🔗', title: 'リンク発行', desc: 'Google MeetのURLが届きます' },
-            { step: 4, icon: '💬', title: 'オンライン相談', desc: 'ビデオ通話で獣医師に相談' },
-            { step: 5, icon: '✅', title: '決済完了', desc: '相談後に自動決済されます' },
+            { step: 1, icon: '👨‍⚕️', title: '獣医師を選ぶ', desc: '指名あり（+500円）または空いている獣医師に即つながる' },
+            { step: 2, icon: '💬', title: '相談方法を選ぶ', desc: 'チャット／画像・動画送信／ビデオ通話' },
+            { step: 3, icon: '🐾', title: '相談する', desc: '即つながる・事前審査なし' },
+            { step: 4, icon: '✅', title: '決済完了', desc: '相談後に自動決済' },
           ].map((f, i) => (
             <div key={f.step} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, paddingBottom: i < 4 ? 16 : 0, marginBottom: i < 4 ? 16 : 0, borderBottom: i < 4 ? '1px dashed #e5e7eb' : 'none' }}>
               <div style={{
