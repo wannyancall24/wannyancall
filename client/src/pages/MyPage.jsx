@@ -263,7 +263,7 @@ export default function MyPage() {
                   <div style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: 4 }}>¥14,800</div>
                   <div style={{ opacity: 0.8, fontSize: '0.82rem' }}>購入日：{PROFILE.planPurchasedAt}</div>
                   <div style={{ marginTop: 16, background: 'rgba(255,255,255,0.15)', borderRadius: 10, padding: '10px 14px', fontSize: '0.82rem' }}>
-                    💡 システム利用料が永久無料
+                    💡 システム利用料が無料
                   </div>
                 </div>
 
@@ -271,7 +271,7 @@ export default function MyPage() {
                 <div className="card">
                   <h3 style={{ fontWeight: 700, marginBottom: 12 }}>✨ プラン特典</h3>
                   {[
-                    { icon: '💴', label: 'システム利用料', value: '永久無料', highlight: true },
+                    { icon: '💴', label: 'システム利用料', value: '無料', highlight: true },
                     { icon: '📞', label: '専用サポート', value: '対応', highlight: false },
                   ].map((b, i, arr) => (
                     <div key={b.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: i < arr.length - 1 ? '1px solid #e5e7eb' : 'none' }}>
