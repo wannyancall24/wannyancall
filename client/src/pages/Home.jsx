@@ -284,11 +284,55 @@ function ExoticModal({ onClose }) {
   )
 }
 
+function ConsultConfirmDialog({ onConfirm, onClose }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 2000, padding: 20,
+    }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 360, padding: '28px 24px' }}>
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <div style={{ fontSize: '2rem', marginBottom: 12 }}>⚠️</div>
+          <div style={{ fontSize: '1rem', fontWeight: 800, color: '#264653', marginBottom: 12, lineHeight: 1.5 }}>
+            ご確認ください
+          </div>
+          <div style={{ fontSize: '0.88rem', color: '#374151', lineHeight: 1.7 }}>
+            本サービスは獣医療行為ではありません。<br />
+            緊急の場合は必ず動物病院を受診してください。
+          </div>
+        </div>
+        <button
+          onClick={onConfirm}
+          style={{ width: '100%', background: '#2a9d8f', color: '#fff', border: 'none', borderRadius: 50, padding: '13px', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', marginBottom: 10 }}
+        >
+          確認しました
+        </button>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', width: '100%', padding: 8, color: '#9ca3af', fontSize: '0.88rem', cursor: 'pointer' }}>
+          キャンセル
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function Home() {
   const navigate = useNavigate()
   const [expandDogCat, setExpandDogCat] = useState(false)
   const [expandExotic, setExpandExotic] = useState(false)
   const [showExoticModal, setShowExoticModal] = useState(false)
+  const [consultConfirm, setConsultConfirm] = useState(null) // null | 'dogcat' | 'exotic'
+
+  function handleConsultClick(type) {
+    setConsultConfirm(type)
+  }
+
+  function handleConsultConfirm() {
+    const type = consultConfirm
+    setConsultConfirm(null)
+    if (type === 'dogcat') navigate('/find')
+    if (type === 'exotic') setShowExoticModal(true)
+  }
 
   return (
     <div className="page">
@@ -381,7 +425,7 @@ export default function Home() {
           <button
             className="btn-primary"
             style={{ background: '#f4a261', marginTop: 12, fontSize: '0.95rem', padding: '11px' }}
-            onClick={() => navigate('/find')}
+            onClick={() => handleConsultClick('dogcat')}
           >
             今すぐ相談する →
           </button>
@@ -413,7 +457,7 @@ export default function Home() {
           <button
             className="btn-primary"
             style={{ background: '#f4a261', marginTop: 10, fontSize: '0.95rem', padding: '11px' }}
-            onClick={() => setShowExoticModal(true)}
+            onClick={() => handleConsultClick('exotic')}
           >
             今すぐ相談する →
           </button>
@@ -442,7 +486,7 @@ export default function Home() {
         </div>
 
         {/* Emergency note */}
-        <p style={{ fontSize: '0.78rem', color: '#9ca3af', textAlign: 'center', marginTop: 14 }}>
+        <p style={{ fontSize: '0.78rem', color: '#6b7280', textAlign: 'center', marginTop: 14 }}>
           緊急の場合は必ず動物病院を受診してください。
         </p>
       </section>
@@ -498,12 +542,15 @@ export default function Home() {
         <h2 className="section-title">📋 相談の流れ</h2>
         <div className="card">
           {[
-            { step: 1, icon: '👨‍⚕️', title: '獣医師を選ぶ', desc: '指名あり（+500円）または空いている獣医師に即つながる' },
+            { step: 1, icon: '👨‍⚕️', title: '獣医師を選ぶ', desc: '空いている獣医師に即つながる（指名する場合は+500円）' },
             { step: 2, icon: '💬', title: '相談方法を選ぶ', desc: 'チャット／画像・動画送信／ビデオ通話' },
-            { step: 3, icon: '🐾', title: '相談する', desc: '即つながる・事前審査なし' },
+            { step: 3, icon: '🐾', title: '相談する', descLines: [
+              '犬・猫：相談する（獣医師が応答次第つながる）',
+              '小動物・鳥・エキゾチック：相談する（獣医師が承諾後につながる）',
+            ]},
             { step: 4, icon: '✅', title: '決済完了', desc: '相談後に自動決済' },
           ].map((f, i) => (
-            <div key={f.step} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, paddingBottom: i < 4 ? 16 : 0, marginBottom: i < 4 ? 16 : 0, borderBottom: i < 4 ? '1px dashed #e5e7eb' : 'none' }}>
+            <div key={f.step} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, paddingBottom: i < 3 ? 16 : 0, marginBottom: i < 3 ? 16 : 0, borderBottom: i < 3 ? '1px dashed #e5e7eb' : 'none' }}>
               <div style={{
                 width: 36, height: 36, borderRadius: '50%', background: '#2a9d8f',
                 color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -511,7 +558,13 @@ export default function Home() {
               }}>{f.step}</div>
               <div>
                 <div style={{ fontWeight: 700, marginBottom: 2 }}>{f.icon} {f.title}</div>
-                <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>{f.desc}</div>
+                {f.descLines ? (
+                  <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+                    {f.descLines.map((line, li) => <div key={li}>{line}</div>)}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>{f.desc}</div>
+                )}
               </div>
             </div>
           ))}
@@ -580,6 +633,14 @@ export default function Home() {
 
       {/* Exotic Modal */}
       {showExoticModal && <ExoticModal onClose={() => setShowExoticModal(false)} />}
+
+      {/* Consult Confirm Dialog */}
+      {consultConfirm && (
+        <ConsultConfirmDialog
+          onConfirm={handleConsultConfirm}
+          onClose={() => setConsultConfirm(null)}
+        />
+      )}
     </div>
   )
 }
