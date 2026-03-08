@@ -11,6 +11,7 @@ import MyPage from './pages/MyPage'
 import VetDashboard from './pages/VetDashboard'
 import Auth from './pages/Auth'
 import Legal from './pages/Legal'
+import Admin from './pages/Admin'
 
 export default function App() {
   const [userMode, setUserMode] = useState('owner') // 'owner' | 'vet'
@@ -27,6 +28,7 @@ export default function App() {
         <Route path="/mypage" element={<MyPage />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/legal" element={<Legal />} />
+        <Route path="/admin" element={<Admin />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
       <BottomNav userMode={userMode} />
