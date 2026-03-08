@@ -1,4 +1,19 @@
 import { useState, useEffect } from 'react'
+
+function EyeIcon({ open }) {
+  return open ? (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+  ) : (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>
+  )
+}
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -105,17 +120,16 @@ export default function Auth() {
       {/* Top gradient */}
       <div style={{
         background: 'linear-gradient(150deg, #2a9d8f 0%, #21867a 100%)',
-        padding: '24px 20px 36px', textAlign: 'center', color: '#fff',
+        padding: '14px 20px 28px', textAlign: 'center', color: '#fff',
         clipPath: 'ellipse(120% 100% at 50% 0%)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <span style={{ fontSize: '2rem' }}>🐾</span>
-          <h1 style={{ fontWeight: 800, fontSize: '1.3rem' }}>WanNyanCall24</h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <span style={{ fontSize: '1.4rem' }}>🐾</span>
+          <span style={{ fontWeight: 800, fontSize: '1.05rem' }}>WanNyanCall24</span>
         </div>
-        <p style={{ opacity: 0.85, fontSize: '0.82rem', marginTop: 4 }}>深夜でも、田舎でも獣医師に相談できる</p>
       </div>
 
-      <div style={{ padding: '0 20px', marginTop: -16 }}>
+      <div style={{ padding: '0 20px', marginTop: -12 }}>
         <div style={{ background: '#fff', borderRadius: 20, boxShadow: '0 4px 24px rgba(42,157,143,0.12)', padding: '24px 20px' }}>
 
           {/* Login / Register Tabs */}
@@ -201,8 +215,8 @@ export default function Auth() {
                 <input className="form-input" type={showPass ? 'text' : 'password'} placeholder="••••••••"
                   value={password} onChange={e => setPassword(e.target.value)} required />
                 <button type="button" onClick={() => setShowPass(v => !v)}
-                  style={{ position: 'absolute', right: 14, top: 36, background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', color: '#9ca3af' }}>
-                  {showPass ? '🙈' : '👁'}
+                  style={{ position: 'absolute', right: 14, top: 36, background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 0, display: 'flex', alignItems: 'center' }}>
+                  <EyeIcon open={showPass} />
                 </button>
               </div>
               <p onClick={handleForgotPassword} style={{ textAlign: 'right', color: '#2a9d8f', fontSize: '0.82rem', marginBottom: 20, cursor: 'pointer', fontWeight: 600 }}>
@@ -229,8 +243,8 @@ export default function Auth() {
                 <input className="form-input" type={showPass ? 'text' : 'password'} placeholder="••••••••"
                   value={password} onChange={e => setPassword(e.target.value)} required />
                 <button type="button" onClick={() => setShowPass(v => !v)}
-                  style={{ position: 'absolute', right: 14, top: 36, background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', color: '#9ca3af' }}>
-                  {showPass ? '🙈' : '👁'}
+                  style={{ position: 'absolute', right: 14, top: 36, background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 0, display: 'flex', alignItems: 'center' }}>
+                  <EyeIcon open={showPass} />
                 </button>
               </div>
               <div className="form-group">
