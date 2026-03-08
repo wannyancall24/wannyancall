@@ -11,6 +11,57 @@ const SHIFTS = [
 const STORAGE_KEY = 'vetApplication'
 const REQUESTS_KEY = 'exoticRequests'
 
+const MONTHLY_REWARDS = [
+  {
+    month: '2025年3月', key: '2025-03', status: '振込予定（3/22）',
+    rows: [
+      { category: '犬・猫 基本相談（15分）', count: 14, unitPrice: 3000, vetUnit: 1500, total: 42000, vetTotal: 21000 },
+      { category: '犬・猫 夜間加算', count: 6, unitPrice: 1000, vetUnit: 500, total: 6000, vetTotal: 3000 },
+      { category: '犬・猫 深夜加算', count: 3, unitPrice: 1500, vetUnit: 750, total: 4500, vetTotal: 2250 },
+      { category: '小動物・エキゾチック 基本相談（15分）', count: 5, unitPrice: 4500, vetUnit: 2250, total: 22500, vetTotal: 11250 },
+      { category: '指名料', count: 4, unitPrice: 500, vetUnit: 500, total: 2000, vetTotal: 2000 },
+    ],
+    fees: [
+      { label: '決済手数料（3.6%）', amount: -1368 },
+      { label: '月額手数料', amount: -220 },
+      { label: '振込手数料', amount: -250 },
+      { label: 'プラットフォーム手数料（0.25%）', amount: -99 },
+    ],
+  },
+  {
+    month: '2025年2月', key: '2025-02', status: '振込済み（3/7）',
+    rows: [
+      { category: '犬・猫 基本相談（15分）', count: 18, unitPrice: 3000, vetUnit: 1500, total: 54000, vetTotal: 27000 },
+      { category: '犬・猫 夜間加算', count: 8, unitPrice: 1000, vetUnit: 500, total: 8000, vetTotal: 4000 },
+      { category: '犬・猫 深夜加算', count: 4, unitPrice: 1500, vetUnit: 750, total: 6000, vetTotal: 3000 },
+      { category: '小動物・エキゾチック 基本相談（15分）', count: 6, unitPrice: 4500, vetUnit: 2250, total: 27000, vetTotal: 13500 },
+      { category: '指名料', count: 5, unitPrice: 500, vetUnit: 500, total: 2500, vetTotal: 2500 },
+    ],
+    fees: [
+      { label: '決済手数料（3.6%）', amount: -1818 },
+      { label: '月額手数料', amount: -220 },
+      { label: '振込手数料', amount: -250 },
+      { label: 'プラットフォーム手数料（0.25%）', amount: -125 },
+    ],
+  },
+  {
+    month: '2025年1月', key: '2025-01', status: '振込済み（2/7）',
+    rows: [
+      { category: '犬・猫 基本相談（15分）', count: 20, unitPrice: 3000, vetUnit: 1500, total: 60000, vetTotal: 30000 },
+      { category: '犬・猫 夜間加算', count: 9, unitPrice: 1000, vetUnit: 500, total: 9000, vetTotal: 4500 },
+      { category: '犬・猫 深夜加算', count: 5, unitPrice: 1500, vetUnit: 750, total: 7500, vetTotal: 3750 },
+      { category: '小動物・エキゾチック 基本相談（15分）', count: 8, unitPrice: 4500, vetUnit: 2250, total: 36000, vetTotal: 18000 },
+      { category: '指名料', count: 6, unitPrice: 500, vetUnit: 500, total: 3000, vetTotal: 3000 },
+    ],
+    fees: [
+      { label: '決済手数料（3.6%）', amount: -2142 },
+      { label: '月額手数料', amount: -220 },
+      { label: '振込手数料', amount: -250 },
+      { label: 'プラットフォーム手数料（0.25%）', amount: -148 },
+    ],
+  },
+]
+
 function loadApplication() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) } catch { return null }
 }
@@ -78,6 +129,7 @@ export default function VetDashboard() {
   const [requests, setRequests] = useState(loadRequests)
   const [reportTarget, setReportTarget] = useState(null)
   const [blockTarget, setBlockTarget] = useState(null)
+  const [selectedMonthIdx, setSelectedMonthIdx] = useState(0)
 
   const [form, setForm] = useState({
     name: '', email: '', tel: '', licenseNo: '',
@@ -386,6 +438,142 @@ export default function VetDashboard() {
     </div>
   )
 
+  const renderRewardDetail = () => {
+    const data = MONTHLY_REWARDS[selectedMonthIdx]
+    const consultTotal = data.rows.reduce((s, r) => s + r.count, 0)
+    const grossVet = data.rows.reduce((s, r) => s + r.vetTotal, 0)
+    const totalFees = data.fees.reduce((s, f) => s + f.amount, 0)
+    const netReward = grossVet + totalFees
+
+    function downloadCSV() {
+      const header = ['項目', '件数', '単価（円）', '獣医師単価（円）', '合計（円）', '獣医師受取（円）']
+      const detailRows = data.rows.map(r => [r.category, r.count, r.unitPrice, r.vetUnit, r.total, r.vetTotal])
+      const feeRows = data.fees.map(f => [f.label, '', '', '', '', f.amount])
+      const summaryRows = [
+        ['報酬小計', '', '', '', '', grossVet],
+        ['手数料合計', '', '', '', '', totalFees],
+        ['実受取額', '', '', '', '', netReward],
+      ]
+      const csv = [header, ...detailRows, [], ...feeRows, [], ...summaryRows]
+        .map(r => r.join(','))
+        .join('\n')
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `報酬明細_${data.key}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    }
+
+    return (
+      <div>
+        {/* Month Selector */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <button
+            onClick={() => setSelectedMonthIdx(i => Math.min(i + 1, MONTHLY_REWARDS.length - 1))}
+            disabled={selectedMonthIdx >= MONTHLY_REWARDS.length - 1}
+            style={{ background: '#e8f6f5', border: 'none', borderRadius: 8, padding: '8px 14px', fontWeight: 700, fontSize: '1rem', cursor: selectedMonthIdx >= MONTHLY_REWARDS.length - 1 ? 'default' : 'pointer', color: selectedMonthIdx >= MONTHLY_REWARDS.length - 1 ? '#d1d5db' : '#2a9d8f' }}
+          >←</button>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontWeight: 800, fontSize: '1rem', color: '#264653' }}>{data.month}</div>
+            <div style={{ fontSize: '0.75rem', color: data.status.includes('振込済み') ? '#2a9d8f' : '#d97706', fontWeight: 600, marginTop: 2 }}>{data.status}</div>
+          </div>
+          <button
+            onClick={() => setSelectedMonthIdx(i => Math.max(i - 1, 0))}
+            disabled={selectedMonthIdx <= 0}
+            style={{ background: '#e8f6f5', border: 'none', borderRadius: 8, padding: '8px 14px', fontWeight: 700, fontSize: '1rem', cursor: selectedMonthIdx <= 0 ? 'default' : 'pointer', color: selectedMonthIdx <= 0 ? '#d1d5db' : '#2a9d8f' }}
+          >→</button>
+        </div>
+
+        {/* Summary Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+          {[
+            { label: '相談件数', value: `${consultTotal}件` },
+            { label: '報酬小計', value: `¥${grossVet.toLocaleString()}` },
+            { label: '差引手数料', value: `−¥${Math.abs(totalFees).toLocaleString()}` },
+            { label: '実受取額', value: `¥${netReward.toLocaleString()}`, highlight: true },
+          ].map(s => (
+            <div key={s.label} style={{
+              background: s.highlight ? 'linear-gradient(135deg, #2a9d8f, #21867a)' : '#f9fafb',
+              borderRadius: 12, padding: '14px 12px', textAlign: 'center',
+              border: s.highlight ? 'none' : '1px solid #e5e7eb',
+            }}>
+              <div style={{ fontSize: '0.72rem', color: s.highlight ? 'rgba(255,255,255,0.8)' : '#9ca3af', marginBottom: 4 }}>{s.label}</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: s.highlight ? '#fff' : '#264653' }}>{s.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Consultation Detail */}
+        <div className="card" style={{ marginBottom: 14 }}>
+          <h3 style={{ fontWeight: 800, fontSize: '0.95rem', color: '#264653', marginBottom: 12 }}>📋 相談内訳</h3>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+              <thead>
+                <tr style={{ background: '#f9fafb' }}>
+                  {['項目', '件数', '獣医師受取'].map(h => (
+                    <th key={h} style={{ padding: '8px 6px', textAlign: h === '項目' ? 'left' : 'right', color: '#6b7280', fontWeight: 600, borderBottom: '1px solid #e5e7eb', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.rows.map((r, i) => (
+                  <tr key={i} style={{ borderBottom: i < data.rows.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
+                    <td style={{ padding: '9px 6px', color: '#264653', fontWeight: 500 }}>{r.category}</td>
+                    <td style={{ padding: '9px 6px', textAlign: 'right', color: '#6b7280' }}>{r.count}件</td>
+                    <td style={{ padding: '9px 6px', textAlign: 'right', fontWeight: 700, color: '#2a9d8f' }}>¥{r.vetTotal.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr style={{ borderTop: '2px solid #2a9d8f', background: '#e8f6f5' }}>
+                  <td style={{ padding: '10px 6px', fontWeight: 800, color: '#264653' }}>合計</td>
+                  <td style={{ padding: '10px 6px', textAlign: 'right', fontWeight: 700, color: '#264653' }}>{consultTotal}件</td>
+                  <td style={{ padding: '10px 6px', textAlign: 'right', fontWeight: 800, color: '#2a9d8f' }}>¥{grossVet.toLocaleString()}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        {/* Fee Breakdown */}
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h3 style={{ fontWeight: 800, fontSize: '0.95rem', color: '#264653', marginBottom: 12 }}>💸 差し引き手数料</h3>
+          {data.fees.map((f, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < data.fees.length - 1 ? '1px solid #f3f4f6' : 'none', fontSize: '0.88rem' }}>
+              <span style={{ color: '#264653' }}>{f.label}</span>
+              <span style={{ fontWeight: 700, color: '#e05555' }}>−¥{Math.abs(f.amount).toLocaleString()}</span>
+            </div>
+          ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 0', marginTop: 4, borderTop: '2px solid #e5e7eb', fontSize: '0.9rem' }}>
+            <span style={{ fontWeight: 800, color: '#264653' }}>手数料合計</span>
+            <span style={{ fontWeight: 800, color: '#e05555' }}>−¥{Math.abs(totalFees).toLocaleString()}</span>
+          </div>
+        </div>
+
+        {/* Net Reward */}
+        <div style={{ background: 'linear-gradient(135deg, #2a9d8f, #21867a)', borderRadius: 14, padding: '16px 20px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#fff' }}>
+          <div>
+            <div style={{ fontSize: '0.82rem', opacity: 0.85 }}>実受取額（{data.month}）</div>
+            <div style={{ fontSize: '1.7rem', fontWeight: 900 }}>¥{netReward.toLocaleString()}</div>
+          </div>
+          <div style={{ fontSize: '0.78rem', opacity: 0.8, textAlign: 'right', lineHeight: 1.6 }}>
+            {data.status}
+          </div>
+        </div>
+
+        {/* CSV Download */}
+        <button
+          onClick={downloadCSV}
+          style={{ width: '100%', background: '#fff', border: '1.5px solid #2a9d8f', borderRadius: 50, padding: '13px', fontWeight: 700, fontSize: '0.92rem', color: '#2a9d8f', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+        >
+          📥 CSVでダウンロード
+        </button>
+      </div>
+    )
+  }
+
   const renderRequests = () => {
     if (requests.length === 0) {
       return (
@@ -515,6 +703,7 @@ export default function VetDashboard() {
       <div style={{ display: 'flex', padding: '16px 16px 0', gap: 4, borderBottom: '1px solid #e5e7eb', background: '#fff', overflowX: 'auto' }}>
         {[
           { key: 'overview', label: '報酬・概要' },
+          { key: 'reward', label: '報酬明細' },
           { key: 'requests', label: `相談リクエスト${pendingCount > 0 ? ` (${pendingCount})` : ''}` },
           { key: 'register', label: application ? '登録状況' : '登録申請' },
           { key: 'shift', label: 'シフト管理' },
@@ -603,6 +792,8 @@ export default function VetDashboard() {
             </div>
           </>
         )}
+
+        {activeTab === 'reward' && renderRewardDetail()}
 
         {activeTab === 'requests' && renderRequests()}
 
