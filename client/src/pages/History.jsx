@@ -117,15 +117,15 @@ export default function History() {
 
                 {/* 通報・ブロック */}
                 {h.status === '完了' && (
-                  <div style={{ display: 'flex', gap: 6, marginTop: 8, justifyContent: 'flex-end' }}>
+                  <div style={{ display: 'flex', gap: 12, marginTop: 6, justifyContent: 'flex-end' }}>
                     <button
                       onClick={() => setBlockTarget({ name: h.vet })}
-                      style={{ background: 'none', border: '1px solid #e5e7eb', borderRadius: 8, padding: '5px 10px', fontSize: '0.75rem', color: '#6b7280', cursor: 'pointer' }}
-                    >🚫 ブロック</button>
+                      style={{ background: 'none', border: 'none', padding: '2px 0', fontSize: '0.72rem', color: '#b0b7c3', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#d1d5db' }}
+                    >ブロック</button>
                     <button
                       onClick={() => setReportTarget({ name: h.vet, consultationId: h.id })}
-                      style={{ background: 'none', border: '1px solid #fca5a5', borderRadius: 8, padding: '5px 10px', fontSize: '0.75rem', color: '#e05555', cursor: 'pointer' }}
-                    >🚨 通報</button>
+                      style={{ background: 'none', border: 'none', padding: '2px 0', fontSize: '0.72rem', color: '#b0b7c3', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#d1d5db' }}
+                    >通報</button>
                   </div>
                 )}
               </div>
