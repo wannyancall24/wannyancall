@@ -50,25 +50,18 @@ function RewardTable({ title, emoji, items, note }) {
         </div>
       )}
       <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginBottom: 10, textAlign: 'right' }}>
-        相談料の50% − 決済手数料3.6%
+        ※ 相談料の50%が獣医師の報酬です
       </div>
       {items.map((row, i) => (
         <div key={row.label} style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           padding: '9px 0', borderBottom: i < items.length - 1 ? '1px solid #e5e7eb' : 'none'
         }}>
-          <div>
-            <div style={{ fontSize: '0.85rem', color: '#264653', fontWeight: 600 }}>{row.label}</div>
-            <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-              {row.isNomination ? '全額獣医師へ' : `¥${row.base.toLocaleString()} × 50%`} − 手数料
-            </div>
-          </div>
+          <div style={{ fontSize: '0.88rem', color: '#264653', fontWeight: 600 }}>{row.label}</div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.78rem', color: '#9ca3af', textDecoration: 'line-through' }}>
-              ¥{row.base.toLocaleString()}
-            </div>
+            <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>¥{row.base.toLocaleString()}</div>
             <div style={{ fontSize: '1rem', fontWeight: 800, color: '#2a9d8f' }}>
-              ¥{row.vet.toLocaleString()}
+              → ¥{row.vet.toLocaleString()}
             </div>
           </div>
         </div>
@@ -541,6 +534,28 @@ export default function VetDashboard() {
               items={EXOTIC_ITEMS}
               note="飼い主が動物の種類・症状の詳細・画像・動画を事前に送信します。内容を確認して承諾ボタンを押した場合のみ相談が開始されます。対応できない場合はお断りを選択してください。"
             />
+
+            {/* 手数料セクション */}
+            <div className="card" style={{ marginBottom: 16 }}>
+              <h3 style={{ fontWeight: 800, fontSize: '1rem', color: '#264653', marginBottom: 12 }}>📋 差し引かれる手数料</h3>
+              {[
+                { label: '決済手数料', value: '3.6%', note: '相談ごとに発生' },
+                { label: '月額手数料', value: '¥220', note: '出金した月のみ' },
+                { label: '振込手数料', value: '¥250', note: '出金のたびに' },
+                { label: 'プラットフォーム手数料', value: '出金額の0.25%', note: '銀行振込時' },
+              ].map((item, i, arr) => (
+                <div key={item.label} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '9px 0', borderBottom: i < arr.length - 1 ? '1px solid #e5e7eb' : 'none'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '0.88rem', color: '#264653', fontWeight: 600 }}>{item.label}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{item.note}</div>
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#6b7280' }}>{item.value}</div>
+                </div>
+              ))}
+            </div>
 
             <div className="card">
               <h3 style={{ fontWeight: 700, marginBottom: 12 }}>✨ 在籍のメリット</h3>
