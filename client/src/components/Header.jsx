@@ -56,7 +56,7 @@ export default function Header({ userMode, setUserMode }) {
             background: '#2a9d8f', border: 'none', borderRadius: 8,
             padding: '6px 14px', fontSize: '0.82rem', color: '#fff', fontWeight: 700, cursor: 'pointer'
           }}>
-            ログイン
+            ログイン / 会員登録
           </button>
         )}
       </div>
