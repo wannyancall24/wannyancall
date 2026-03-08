@@ -155,7 +155,7 @@ export default function VetDashboard() {
 
   const pendingCount = requests.filter(r => r.status === 'pending').length
 
-  const stepLabels = ['基本情報', '免許証', '経歴', '確認・申請']
+  const stepLabels = ['基本情報', '獣医師免許証', '経歴', '確認・申請']
 
   const DOG_CAT_ITEMS = [
     { label: '基本相談 15分', base: 3000, vet: 1500 },
@@ -362,7 +362,7 @@ export default function VetDashboard() {
             ))}
           </div>
           <div className="card">
-            <h3 style={{ fontWeight: 700, marginBottom: 12, fontSize: '0.95rem' }}>免許証</h3>
+            <h3 style={{ fontWeight: 700, marginBottom: 12, fontSize: '0.95rem' }}>獣医師免許証</h3>
             {licenseImage && <img src={licenseImage} alt="免許証" style={{ width: '100%', borderRadius: 8, border: '1px solid #e5e7eb' }} />}
           </div>
           <div className="card">
