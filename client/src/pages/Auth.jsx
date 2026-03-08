@@ -1,13 +1,104 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function Auth() {
-  const [mode, setMode] = useState('login')       // 'login' | 'register'
-  const [userType, setUserType] = useState('owner') // 'owner' | 'vet'
+  const [mode, setMode] = useState('login')
+  const [userType, setUserType] = useState('owner')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [passwordConfirm, setPasswordConfirm] = useState('')
+  const [name, setName] = useState('')
   const [showPass, setShowPass] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
   const navigate = useNavigate()
+  const { user, role } = useAuth()
 
-  const handleSubmit = () => navigate('/')
+  // ログイン済みなら自動リダイレクト
+  useEffect(() => {
+    if (user && role) {
+      navigate('/')
+    }
+  }, [user, role, navigate])
+
+  async function handleLogin(e) {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    setLoading(false)
+    if (error) {
+      setError('メールアドレスまたはパスワードが正しくありません')
+      return
+    }
+    navigate('/')
+  }
+
+  async function handleRegister(e) {
+    e.preventDefault()
+    setError('')
+    if (password !== passwordConfirm) {
+      setError('パスワードが一致しません')
+      return
+    }
+    if (password.length < 8) {
+      setError('パスワードは8文字以上で入力してください')
+      return
+    }
+    setLoading(true)
+
+    // Supabase Auth でユーザー作成
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name } },
+    })
+    if (signUpError) {
+      setLoading(false)
+      setError(signUpError.message)
+      return
+    }
+
+    // profiles テーブルにロール保存
+    if (data.user) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({ id: data.user.id, role: userType, name })
+      if (profileError) {
+        setLoading(false)
+        setError('プロフィール作成に失敗しました。もう一度お試しください。')
+        return
+      }
+    }
+
+    setLoading(false)
+    setMessage('確認メールを送信しました。メールを確認してください。')
+  }
+
+  const handleGoogleLogin = async () => {
+    setError('')
+    // Googleログイン時はロールを後で設定する必要があるため、
+    // 現在はメール/パスワード認証のみ対応
+    setError('現在はメール/パスワードでの登録のみ対応しています。')
+  }
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError('パスワードリセット用メールアドレスを入力してください')
+      return
+    }
+    setLoading(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(email)
+    setLoading(false)
+    if (error) {
+      setError(error.message)
+    } else {
+      setMessage('パスワードリセットメールを送信しました。')
+    }
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fffe', paddingBottom: 80 }}>
@@ -23,18 +114,12 @@ export default function Auth() {
       </div>
 
       <div style={{ padding: '0 20px', marginTop: -24 }}>
-        {/* Card */}
-        <div style={{
-          background: '#fff', borderRadius: 20, boxShadow: '0 4px 24px rgba(42,157,143,0.12)',
-          padding: '24px 20px',
-        }}>
+        <div style={{ background: '#fff', borderRadius: 20, boxShadow: '0 4px 24px rgba(42,157,143,0.12)', padding: '24px 20px' }}>
+
           {/* Login / Register Tabs */}
           <div style={{ display: 'flex', background: '#e8f6f5', borderRadius: 50, padding: 4, marginBottom: 20 }}>
-            {[
-              { key: 'login', label: 'ログイン' },
-              { key: 'register', label: '会員登録' },
-            ].map(m => (
-              <button key={m.key} onClick={() => setMode(m.key)} style={{
+            {[{ key: 'login', label: 'ログイン' }, { key: 'register', label: '会員登録' }].map(m => (
+              <button key={m.key} onClick={() => { setMode(m.key); setError(''); setMessage('') }} style={{
                 flex: 1, padding: '10px', borderRadius: 50, border: 'none', cursor: 'pointer',
                 fontWeight: 700, fontSize: '0.95rem', transition: 'all 0.2s',
                 background: mode === m.key ? '#2a9d8f' : 'transparent',
@@ -47,31 +132,26 @@ export default function Auth() {
           <div style={{ marginBottom: 20 }}>
             <p style={{ fontSize: '0.82rem', color: '#6b7280', marginBottom: 8, fontWeight: 600 }}>アカウント種別</p>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setUserType('owner')} style={{
-                flex: 1, padding: '10px', borderRadius: 12, cursor: 'pointer', fontWeight: 700,
-                fontSize: '0.88rem', transition: 'all 0.15s',
-                border: userType === 'owner' ? '2px solid #2a9d8f' : '2px solid #e5e7eb',
-                background: userType === 'owner' ? '#e8f6f5' : '#fff',
-                color: userType === 'owner' ? '#2a9d8f' : '#9ca3af',
-              }}>
-                🐕 飼い主
-                {userType === 'owner' && <div style={{ fontSize: '0.72rem', fontWeight: 600, marginTop: 2 }}>ペットの相談をする</div>}
-              </button>
-              <button onClick={() => setUserType('vet')} style={{
-                flex: 1, padding: '10px', borderRadius: 12, cursor: 'pointer', fontWeight: 700,
-                fontSize: '0.88rem', transition: 'all 0.15s',
-                border: userType === 'vet' ? '2px solid #2a9d8f' : '2px solid #e5e7eb',
-                background: userType === 'vet' ? '#e8f6f5' : '#fff',
-                color: userType === 'vet' ? '#2a9d8f' : '#9ca3af',
-              }}>
-                🩺 獣医師
-                {userType === 'vet' && <div style={{ fontSize: '0.72rem', fontWeight: 600, marginTop: 2 }}>相談を受け付ける</div>}
-              </button>
+              {[
+                { key: 'owner', icon: '🐕', label: '飼い主', sub: 'ペットの相談をする' },
+                { key: 'vet', icon: '🩺', label: '獣医師', sub: '相談を受け付ける' },
+              ].map(t => (
+                <button key={t.key} onClick={() => setUserType(t.key)} style={{
+                  flex: 1, padding: '10px', borderRadius: 12, cursor: 'pointer', fontWeight: 700,
+                  fontSize: '0.88rem', transition: 'all 0.15s',
+                  border: userType === t.key ? '2px solid #2a9d8f' : '2px solid #e5e7eb',
+                  background: userType === t.key ? '#e8f6f5' : '#fff',
+                  color: userType === t.key ? '#2a9d8f' : '#9ca3af',
+                }}>
+                  {t.icon} {t.label}
+                  {userType === t.key && <div style={{ fontSize: '0.72rem', fontWeight: 600, marginTop: 2 }}>{t.sub}</div>}
+                </button>
+              ))}
             </div>
           </div>
 
           {/* Google Login */}
-          <button style={{
+          <button onClick={handleGoogleLogin} style={{
             width: '100%', padding: '13px', borderRadius: 50,
             border: '1.5px solid #e5e7eb', background: '#fff', cursor: 'pointer',
             fontWeight: 700, fontSize: '0.92rem', color: '#264653',
@@ -87,75 +167,78 @@ export default function Auth() {
             Googleで{mode === 'login' ? 'ログイン' : '登録'}
           </button>
 
-          {/* Divider */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
             <div style={{ flex: 1, height: 1, background: '#e5e7eb' }} />
             <span style={{ fontSize: '0.8rem', color: '#9ca3af', whiteSpace: 'nowrap' }}>または</span>
             <div style={{ flex: 1, height: 1, background: '#e5e7eb' }} />
           </div>
 
-          {/* Form */}
+          {/* Error / Message */}
+          {error && (
+            <div style={{ background: '#fee2e2', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.85rem', color: '#dc2626', fontWeight: 600 }}>
+              {error}
+            </div>
+          )}
+          {message && (
+            <div style={{ background: '#e8f6f5', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.85rem', color: '#2a9d8f', fontWeight: 600 }}>
+              {message}
+            </div>
+          )}
+
+          {/* Login Form */}
           {mode === 'login' ? (
-            <>
+            <form onSubmit={handleLogin}>
               <div className="form-group">
                 <label className="form-label">メールアドレス</label>
-                <input className="form-input" type="email" placeholder="example@email.com" />
+                <input className="form-input" type="email" placeholder="example@email.com"
+                  value={email} onChange={e => setEmail(e.target.value)} required />
               </div>
               <div className="form-group" style={{ position: 'relative' }}>
                 <label className="form-label">パスワード</label>
-                <input className="form-input" type={showPass ? 'text' : 'password'} placeholder="••••••••" />
-                <button
-                  onClick={() => setShowPass(v => !v)}
-                  style={{ position: 'absolute', right: 14, top: 36, background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', color: '#9ca3af' }}
-                >{showPass ? '🙈' : '👁'}</button>
+                <input className="form-input" type={showPass ? 'text' : 'password'} placeholder="••••••••"
+                  value={password} onChange={e => setPassword(e.target.value)} required />
+                <button type="button" onClick={() => setShowPass(v => !v)}
+                  style={{ position: 'absolute', right: 14, top: 36, background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', color: '#9ca3af' }}>
+                  {showPass ? '🙈' : '👁'}
+                </button>
               </div>
-              <p style={{ textAlign: 'right', color: '#2a9d8f', fontSize: '0.82rem', marginBottom: 20, cursor: 'pointer', fontWeight: 600 }}>
+              <p onClick={handleForgotPassword} style={{ textAlign: 'right', color: '#2a9d8f', fontSize: '0.82rem', marginBottom: 20, cursor: 'pointer', fontWeight: 600 }}>
                 パスワードをお忘れですか？
               </p>
-              <button className="btn-primary" onClick={handleSubmit}>ログイン</button>
-
-              {userType === 'vet' && (
-                <div style={{ marginTop: 14, padding: '12px', background: '#e8f6f5', borderRadius: 10, fontSize: '0.83rem', color: '#2a9d8f', textAlign: 'center' }}>
-                  🩺 獣医師アカウントは審査制です。<br />登録後に運営が確認のご連絡をします。
-                </div>
-              )}
-            </>
+              <button type="submit" className="btn-primary" disabled={loading} style={{ opacity: loading ? 0.7 : 1 }}>
+                {loading ? 'ログイン中...' : 'ログイン'}
+              </button>
+            </form>
           ) : (
-            <>
+            <form onSubmit={handleRegister}>
               <div className="form-group">
                 <label className="form-label">お名前{userType === 'vet' ? '（本名）' : ''}</label>
-                <input className="form-input" type="text" placeholder={userType === 'vet' ? '田中 健一' : '山田 花子'} />
+                <input className="form-input" type="text" placeholder={userType === 'vet' ? '田中 健一' : '山田 花子'}
+                  value={name} onChange={e => setName(e.target.value)} required />
               </div>
               <div className="form-group">
                 <label className="form-label">メールアドレス</label>
-                <input className="form-input" type="email" placeholder="example@email.com" />
+                <input className="form-input" type="email" placeholder="example@email.com"
+                  value={email} onChange={e => setEmail(e.target.value)} required />
               </div>
-              <div className="form-group">
-                <label className="form-label">電話番号</label>
-                <input className="form-input" type="tel" placeholder="090-XXXX-XXXX" />
-              </div>
-              {userType === 'vet' && (
-                <div className="form-group">
-                  <label className="form-label">獣医師免許番号</label>
-                  <input className="form-input" type="text" placeholder="第XXXXX号" />
-                </div>
-              )}
               <div className="form-group" style={{ position: 'relative' }}>
                 <label className="form-label">パスワード（8文字以上）</label>
-                <input className="form-input" type={showPass ? 'text' : 'password'} placeholder="••••••••" />
-                <button
-                  onClick={() => setShowPass(v => !v)}
-                  style={{ position: 'absolute', right: 14, top: 36, background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', color: '#9ca3af' }}
-                >{showPass ? '🙈' : '👁'}</button>
+                <input className="form-input" type={showPass ? 'text' : 'password'} placeholder="••••••••"
+                  value={password} onChange={e => setPassword(e.target.value)} required />
+                <button type="button" onClick={() => setShowPass(v => !v)}
+                  style={{ position: 'absolute', right: 14, top: 36, background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', color: '#9ca3af' }}>
+                  {showPass ? '🙈' : '👁'}
+                </button>
               </div>
               <div className="form-group">
                 <label className="form-label">パスワード（確認）</label>
-                <input className="form-input" type="password" placeholder="もう一度入力" />
+                <input className="form-input" type="password" placeholder="もう一度入力"
+                  value={passwordConfirm} onChange={e => setPasswordConfirm(e.target.value)} required />
               </div>
 
               {userType === 'vet' && (
                 <div style={{ marginBottom: 16, padding: '12px 14px', background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 10, fontSize: '0.83rem', color: '#92400e' }}>
-                  ⚠️ 獣医師登録は免許番号の確認後、審査を経て承認されます（1〜3営業日）。
+                  ⚠️ 獣医師登録は登録後にダッシュボードから免許証を提出し、審査を経て承認されます（1〜3営業日）。
                 </div>
               )}
 
@@ -165,20 +248,17 @@ export default function Auth() {
                 <span style={{ color: '#2a9d8f', cursor: 'pointer' }}>プライバシーポリシー</span>
                 に同意したものとみなします。
               </p>
-              <button className="btn-primary" onClick={handleSubmit}>
-                {userType === 'vet' ? '獣医師として登録申請する' : '会員登録する'}
+              <button type="submit" className="btn-primary" disabled={loading} style={{ opacity: loading ? 0.7 : 1 }}>
+                {loading ? '登録中...' : userType === 'vet' ? '獣医師として登録する' : '会員登録する'}
               </button>
-            </>
+            </form>
           )}
         </div>
 
-        {/* Footer */}
         <p style={{ textAlign: 'center', color: '#9ca3af', fontSize: '0.8rem', marginTop: 20 }}>
           {mode === 'login' ? 'アカウントをお持ちでない方は' : 'すでにアカウントをお持ちの方は'}
-          <span
-            style={{ color: '#2a9d8f', fontWeight: 700, cursor: 'pointer', marginLeft: 4 }}
-            onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-          >
+          <span style={{ color: '#2a9d8f', fontWeight: 700, cursor: 'pointer', marginLeft: 4 }}
+            onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); setMessage('') }}>
             {mode === 'login' ? '会員登録' : 'ログイン'}
           </span>
         </p>

@@ -1,4 +1,5 @@
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 
 const titles = {
   '/': 'WanNyanCall24',
@@ -10,10 +11,17 @@ const titles = {
 
 export default function Header({ userMode, setUserMode }) {
   const location = useLocation()
+  const navigate = useNavigate()
+  const { user, role, signOut } = useAuth()
   const isVetPage = location.pathname.startsWith('/vet/')
   const isBooking = location.pathname.startsWith('/booking/')
   const title = isVetPage ? '獣医師プロフィール' : isBooking ? '予約・決済' : (titles[location.pathname] || 'WanNyanCall24')
   const showTabs = location.pathname === '/'
+
+  async function handleSignOut() {
+    await signOut()
+    navigate('/')
+  }
 
   return (
     <header style={{
@@ -27,7 +35,30 @@ export default function Header({ userMode, setUserMode }) {
           <span style={{ fontSize: '1.4rem' }}>🐾</span>
           <span style={{ fontWeight: 700, fontSize: '1.05rem', color: '#2a9d8f' }}>{title}</span>
         </div>
-        <button style={{ background: 'none', border: 'none', fontSize: '1.3rem', cursor: 'pointer' }}>👤</button>
+        {user ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{
+              fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 50,
+              background: role === 'vet' ? '#e8f6f5' : '#f0f9f8',
+              color: '#2a9d8f'
+            }}>
+              {role === 'vet' ? '🩺 獣医師' : '🐕 飼い主'}
+            </span>
+            <button onClick={handleSignOut} style={{
+              background: 'none', border: '1px solid #e5e7eb', borderRadius: 8,
+              padding: '4px 10px', fontSize: '0.75rem', color: '#6b7280', cursor: 'pointer'
+            }}>
+              ログアウト
+            </button>
+          </div>
+        ) : (
+          <button onClick={() => navigate('/auth')} style={{
+            background: '#2a9d8f', border: 'none', borderRadius: 8,
+            padding: '6px 14px', fontSize: '0.82rem', color: '#fff', fontWeight: 700, cursor: 'pointer'
+          }}>
+            ログイン
+          </button>
+        )}
       </div>
       {showTabs && (
         <div style={{ display: 'flex', padding: '0 16px 12px', gap: 8 }}>
