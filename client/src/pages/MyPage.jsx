@@ -202,7 +202,7 @@ export default function MyPage() {
                   <div style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: 4 }}>¥14,800</div>
                   <div style={{ opacity: 0.8, fontSize: '0.82rem' }}>購入日：{PROFILE.planPurchasedAt}</div>
                   <div style={{ marginTop: 16, background: 'rgba(255,255,255,0.15)', borderRadius: 10, padding: '10px 14px', fontSize: '0.82rem' }}>
-                    💡 システム利用料・夜間・深夜割増がすべて永久無料
+                    💡 システム利用料が永久無料
                   </div>
                 </div>
 
@@ -211,9 +211,6 @@ export default function MyPage() {
                   <h3 style={{ fontWeight: 700, marginBottom: 12 }}>✨ プラン特典</h3>
                   {[
                     { icon: '💴', label: 'システム利用料', value: '永久無料', highlight: true },
-                    { icon: '🌆', label: '夜間割増（20〜22時）', value: '無料', highlight: true },
-                    { icon: '🌙', label: '深夜割増（22〜8時）', value: '無料', highlight: true },
-                    { icon: '⚡', label: '優先予約', value: '対応', highlight: false },
                     { icon: '📞', label: '専用サポート', value: '対応', highlight: false },
                   ].map((b, i, arr) => (
                     <div key={b.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: i < arr.length - 1 ? '1px solid #e5e7eb' : 'none' }}>
@@ -239,7 +236,7 @@ export default function MyPage() {
                     <span style={{ fontSize: '0.85rem', opacity: 0.7, textDecoration: 'line-through' }}>¥19,800</span>
                   </div>
                   <div style={{ fontSize: '2rem', fontWeight: 900, marginBottom: 4 }}>¥14,800 <span style={{ fontSize: '1rem' }}>買い切り</span></div>
-                  <p style={{ opacity: 0.85, fontSize: '0.85rem', marginBottom: 16 }}>一度の購入で、割増料金が永久に無料に</p>
+                  <p style={{ opacity: 0.85, fontSize: '0.85rem', marginBottom: 16 }}>システム利用料（毎回¥800）が無料になるプラン</p>
                   <button className="btn-primary" style={{ background: '#f4a261' }}>このプランを購入する</button>
                 </div>
               </>

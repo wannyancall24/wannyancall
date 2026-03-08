@@ -535,6 +535,17 @@ export default function VetDashboard() {
               note="飼い主が動物の種類・症状の詳細・画像・動画を事前に送信します。内容を確認して承諾ボタンを押した場合のみ相談が開始されます。対応できない場合はお断りを選択してください。"
             />
 
+            {/* 振込タイミング */}
+            <div style={{ background: '#e8f6f5', borderRadius: 12, padding: '14px 16px', marginBottom: 14, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>🏦</span>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#2a9d8f', marginBottom: 2 }}>振込タイミング</div>
+                <div style={{ fontSize: '0.85rem', color: '#264653', lineHeight: 1.6 }}>
+                  毎月1日・15日締め、翌7日に登録口座へ振込されます。
+                </div>
+              </div>
+            </div>
+
             {/* 手数料セクション */}
             <div className="card" style={{ marginBottom: 16 }}>
               <h3 style={{ fontWeight: 800, fontSize: '1rem', color: '#264653', marginBottom: 12 }}>📋 差し引かれる手数料</h3>
