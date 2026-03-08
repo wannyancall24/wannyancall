@@ -53,19 +53,32 @@ export default function VetDashboard() {
                 <div style={{ fontSize: '2.5rem', fontWeight: 900, color: '#2a9d8f' }}>50%</div>
                 <div style={{ color: '#264653', fontWeight: 700 }}>相談料を獣医師がもらえます</div>
               </div>
+              <div style={{ fontSize: '0.78rem', color: '#6b7280', marginBottom: 10, textAlign: 'center' }}>
+                ※決済手数料3.6%を差し引いた実際の受取金額
+              </div>
               {[
-                { label: '相談料（15分）', vet: '¥1,100', platform: '¥1,100' },
-                { label: '延長料金（+5分）', vet: '¥400', platform: '¥400' },
-                { label: '延長料金（+15分）', vet: '¥1,250', platform: '¥1,250' },
-              ].map((row, i) => (
-                <div key={row.label} style={{
-                  display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: '0.85rem',
-                  borderBottom: i < 2 ? '1px solid rgba(42,157,143,0.2)' : 'none'
-                }}>
-                  <span style={{ color: '#6b7280' }}>{row.label}</span>
-                  <span style={{ fontWeight: 700, color: '#2a9d8f' }}>あなた {row.vet}</span>
-                </div>
-              ))}
+                { label: '相談料（15分）', base: 1100, },
+                { label: '延長料金（+5分）', base: 400 },
+                { label: '延長料金（+15分）', base: 1250 },
+              ].map((row, i) => {
+                const net = Math.floor(row.base * (1 - 0.036))
+                return (
+                  <div key={row.label} style={{
+                    padding: '10px 0', fontSize: '0.85rem',
+                    borderBottom: i < 2 ? '1px solid rgba(42,157,143,0.2)' : 'none'
+                  }}>
+                    <div style={{ color: '#6b7280', marginBottom: 4 }}>{row.label}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.78rem', color: '#9ca3af' }}>
+                        ¥{row.base.toLocaleString()} − 手数料(3.6%)
+                      </span>
+                      <span style={{ fontWeight: 800, color: '#2a9d8f', fontSize: '1rem' }}>
+                        ¥{net.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
 
             {/* Benefits */}

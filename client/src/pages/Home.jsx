@@ -109,7 +109,7 @@ export default function Home() {
         </div>
         {/* 買い切りプラン */}
         <div style={{
-          background: 'linear-gradient(135deg, #264653, #2a9d8f)',
+          background: 'linear-gradient(135deg, #2a9d8f 0%, #21867a 100%)',
           borderRadius: 16, padding: 20, color: '#fff', position: 'relative', overflow: 'hidden'
         }}>
           <div style={{
