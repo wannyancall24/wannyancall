@@ -7,6 +7,7 @@ const SHIFTS = [
 ]
 
 const STORAGE_KEY = 'vetApplication'
+const REQUESTS_KEY = 'exoticRequests'
 
 function loadApplication() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) } catch { return null }
@@ -14,8 +15,13 @@ function loadApplication() {
 function saveApplication(data) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
 }
+function loadRequests() {
+  try { return JSON.parse(localStorage.getItem(REQUESTS_KEY)) || [] } catch { return [] }
+}
+function saveRequests(reqs) {
+  localStorage.setItem(REQUESTS_KEY, JSON.stringify(reqs))
+}
 
-// ステータスバッジ
 function StatusBadge({ status }) {
   const map = {
     pending:  { label: '審査中', bg: '#fef3c7', color: '#d97706' },
@@ -30,27 +36,74 @@ function StatusBadge({ status }) {
   )
 }
 
+// 報酬テーブル
+function RewardTable({ title, emoji, items, note }) {
+  return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <span style={{ fontSize: '1.3rem' }}>{emoji}</span>
+        <h3 style={{ fontWeight: 800, fontSize: '1rem', color: '#264653' }}>{title}</h3>
+      </div>
+      {note && (
+        <div style={{ background: '#e8f6f5', borderRadius: 8, padding: '8px 12px', fontSize: '0.78rem', color: '#2a9d8f', marginBottom: 12, lineHeight: 1.6 }}>
+          {note}
+        </div>
+      )}
+      <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginBottom: 10, textAlign: 'right' }}>
+        相談料の50% − 決済手数料3.6%
+      </div>
+      {items.map((row, i) => (
+        <div key={row.label} style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '9px 0', borderBottom: i < items.length - 1 ? '1px solid #e5e7eb' : 'none'
+        }}>
+          <div>
+            <div style={{ fontSize: '0.85rem', color: '#264653', fontWeight: 600 }}>{row.label}</div>
+            <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+              {row.isNomination ? '全額獣医師へ' : `¥${row.base.toLocaleString()} × 50%`} − 手数料
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '0.78rem', color: '#9ca3af', textDecoration: 'line-through' }}>
+              ¥{row.base.toLocaleString()}
+            </div>
+            <div style={{ fontSize: '1rem', fontWeight: 800, color: '#2a9d8f' }}>
+              ¥{row.vet.toLocaleString()}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function VetDashboard() {
   const [activeTab, setActiveTab] = useState('overview')
   const [application, setApplication] = useState(loadApplication)
+  const [requests, setRequests] = useState(loadRequests)
 
-  // 登録フォームの状態
   const [form, setForm] = useState({
     name: '', email: '', tel: '', licenseNo: '',
     specialty: '', experience: '', animals: '',
     hospital: '', career: '', bio: '', nightOk: '対応可能',
   })
-  const [licenseImage, setLicenseImage] = useState(null)   // base64
+  const [licenseImage, setLicenseImage] = useState(null)
   const [licenseFileName, setLicenseFileName] = useState('')
-  const [formStep, setFormStep] = useState(1)  // 1:基本情報 2:免許証 3:経歴 4:確認
+  const [formStep, setFormStep] = useState(1)
   const [errors, setErrors] = useState({})
   const fileInputRef = useRef()
 
-  // 外部で承認/否認されたら再読み込み
   useEffect(() => {
-    const handler = () => setApplication(loadApplication())
+    const handler = () => {
+      setApplication(loadApplication())
+      setRequests(loadRequests())
+    }
     window.addEventListener('vetApplicationUpdated', handler)
-    return () => window.removeEventListener('vetApplicationUpdated', handler)
+    window.addEventListener('exoticRequestUpdated', handler)
+    return () => {
+      window.removeEventListener('vetApplicationUpdated', handler)
+      window.removeEventListener('exoticRequestUpdated', handler)
+    }
   }, [])
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -84,9 +137,7 @@ export default function VetDashboard() {
     return Object.keys(e).length === 0
   }
 
-  const nextStep = () => {
-    if (validate(formStep)) setFormStep(s => s + 1)
-  }
+  const nextStep = () => { if (validate(formStep)) setFormStep(s => s + 1) }
 
   const handleSubmit = () => {
     const app = {
@@ -99,9 +150,38 @@ export default function VetDashboard() {
     setApplication(app)
   }
 
+  // エキゾチック相談リクエストの承諾/お断り
+  const handleRequestAction = (id, action) => {
+    const updated = requests.map(r =>
+      r.id === id ? { ...r, status: action, reviewedAt: new Date().toISOString() } : r
+    )
+    saveRequests(updated)
+    setRequests(updated)
+    window.dispatchEvent(new Event('exoticRequestUpdated'))
+  }
+
+  const pendingCount = requests.filter(r => r.status === 'pending').length
+
   const stepLabels = ['基本情報', '免許証', '経歴', '確認・申請']
 
-  // 申請済みの場合はステータス画面を表示
+  const DOG_CAT_ITEMS = [
+    { label: '基本相談 15分', base: 3000, vet: 1446 },
+    { label: '延長 +5分', base: 1000, vet: 482 },
+    { label: '延長 +15分', base: 3000, vet: 1446 },
+    { label: '夜間加算（20〜22時）', base: 1000, vet: 482 },
+    { label: '深夜加算（22〜8時）', base: 1500, vet: 723 },
+    { label: '指名料', base: 500, vet: 482, isNomination: true },
+  ]
+
+  const EXOTIC_ITEMS = [
+    { label: '基本相談 15分', base: 4500, vet: 2169 },
+    { label: '延長 +5分', base: 1500, vet: 723 },
+    { label: '延長 +15分', base: 4500, vet: 2169 },
+    { label: '夜間加算（20〜22時）', base: 1000, vet: 482 },
+    { label: '深夜加算（22〜8時）', base: 1500, vet: 723 },
+    { label: '指名料', base: 500, vet: 482, isNomination: true },
+  ]
+
   const renderApplicationStatus = () => (
     <div>
       <div className="card" style={{ textAlign: 'center', padding: '28px 20px' }}>
@@ -119,7 +199,6 @@ export default function VetDashboard() {
           {application.status === 'rejected' && '内容に不備がありました。お問い合わせください。'}
         </p>
       </div>
-
       <div className="card">
         <h3 style={{ fontWeight: 700, marginBottom: 12, fontSize: '0.95rem' }}>申請内容</h3>
         {[
@@ -142,19 +221,16 @@ export default function VetDashboard() {
           </div>
         )}
       </div>
-
       {application.status === 'rejected' && (
-        <button className="btn-secondary" onClick={() => { saveApplication(null); localStorage.removeItem(STORAGE_KEY); setApplication(null); setFormStep(1) }}>
+        <button className="btn-secondary" onClick={() => { localStorage.removeItem(STORAGE_KEY); setApplication(null); setFormStep(1) }}>
           再申請する
         </button>
       )}
     </div>
   )
 
-  // 登録フォーム
   const renderRegisterForm = () => (
     <div>
-      {/* ステッパー */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 20 }}>
         {stepLabels.map((l, i) => (
           <div key={l} style={{ display: 'flex', alignItems: 'center', flex: i < stepLabels.length - 1 ? 1 : 0 }}>
@@ -162,7 +238,7 @@ export default function VetDashboard() {
               <div style={{
                 width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center',
                 justifyContent: 'center', fontSize: '0.78rem', fontWeight: 700,
-                background: formStep > i + 1 ? '#2a9d8f' : formStep === i + 1 ? '#2a9d8f' : '#e5e7eb',
+                background: formStep >= i + 1 ? '#2a9d8f' : '#e5e7eb',
                 color: formStep >= i + 1 ? '#fff' : '#9ca3af',
               }}>{formStep > i + 1 ? '✓' : i + 1}</div>
               <span style={{ fontSize: '0.62rem', color: formStep === i + 1 ? '#2a9d8f' : '#9ca3af', fontWeight: formStep === i + 1 ? 700 : 400, whiteSpace: 'nowrap' }}>{l}</span>
@@ -172,7 +248,6 @@ export default function VetDashboard() {
         ))}
       </div>
 
-      {/* Step 1: 基本情報 */}
       {formStep === 1 && (
         <div className="card">
           <h3 style={{ fontWeight: 700, marginBottom: 16 }}>基本情報</h3>
@@ -196,35 +271,25 @@ export default function VetDashboard() {
           <div className="form-group">
             <label className="form-label">夜間対応</label>
             <select className="form-select" value={form.nightOk} onChange={e => set('nightOk', e.target.value)}>
-              <option>対応可能</option>
-              <option>不可</option>
+              <option>対応可能</option><option>不可</option>
             </select>
           </div>
           <button className="btn-primary" onClick={nextStep}>次へ →</button>
         </div>
       )}
 
-      {/* Step 2: 免許証アップロード */}
       {formStep === 2 && (
         <div className="card">
           <h3 style={{ fontWeight: 700, marginBottom: 8 }}>獣医師免許証のアップロード</h3>
           <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: 16, lineHeight: 1.6 }}>
-            獣医師免許証の写真またはスキャン画像をアップロードしてください。<br />
-            ファイル形式：JPG・PNG・PDF
+            獣医師免許証の写真またはスキャン画像をアップロードしてください。<br />ファイル形式：JPG・PNG・PDF
           </p>
-
-          <input ref={fileInputRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }}
-            onChange={handleImageUpload} />
-
-          <div
-            onClick={() => fileInputRef.current.click()}
-            style={{
-              border: `2px dashed ${errors.licenseImage ? '#ef4444' : '#2a9d8f'}`,
-              borderRadius: 12, padding: '32px 20px', textAlign: 'center',
-              cursor: 'pointer', background: licenseImage ? '#e8f6f5' : '#f9fafb',
-              marginBottom: 16,
-            }}
-          >
+          <input ref={fileInputRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }} onChange={handleImageUpload} />
+          <div onClick={() => fileInputRef.current.click()} style={{
+            border: `2px dashed ${errors.licenseImage ? '#ef4444' : '#2a9d8f'}`,
+            borderRadius: 12, padding: '32px 20px', textAlign: 'center', cursor: 'pointer',
+            background: licenseImage ? '#e8f6f5' : '#f9fafb', marginBottom: 16,
+          }}>
             {licenseImage ? (
               <>
                 <img src={licenseImage} alt="免許証プレビュー" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8, marginBottom: 8 }} />
@@ -240,11 +305,9 @@ export default function VetDashboard() {
             )}
           </div>
           {errors.licenseImage && <p style={{ color: '#ef4444', fontSize: '0.78rem', marginBottom: 12 }}>{errors.licenseImage}</p>}
-
           <div style={{ background: '#fef3c7', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: '0.82rem', color: '#92400e' }}>
             🔒 アップロードされた画像は審査目的のみに使用し、第三者に開示しません。
           </div>
-
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setFormStep(1)}>← 戻る</button>
             <button className="btn-primary" style={{ flex: 2 }} onClick={nextStep}>次へ →</button>
@@ -252,7 +315,6 @@ export default function VetDashboard() {
         </div>
       )}
 
-      {/* Step 3: 経歴 */}
       {formStep === 3 && (
         <div className="card">
           <h3 style={{ fontWeight: 700, marginBottom: 16 }}>勤務先・経歴</h3>
@@ -283,7 +345,6 @@ export default function VetDashboard() {
         </div>
       )}
 
-      {/* Step 4: 確認 */}
       {formStep === 4 && (
         <div>
           <div style={{ background: '#e8f6f5', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: '0.88rem', color: '#2a9d8f', fontWeight: 600 }}>
@@ -328,6 +389,100 @@ export default function VetDashboard() {
     </div>
   )
 
+  const renderRequests = () => {
+    if (requests.length === 0) {
+      return (
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#9ca3af' }}>
+          <div style={{ fontSize: '3rem', marginBottom: 12 }}>📭</div>
+          <p style={{ fontWeight: 600 }}>相談リクエストはありません</p>
+          <p style={{ fontSize: '0.82rem', marginTop: 6 }}>小動物・鳥・エキゾチックの相談依頼が届くとここに表示されます</p>
+        </div>
+      )
+    }
+    return (
+      <div>
+        {requests.slice().reverse().map(req => {
+          const isPending = req.status === 'pending'
+          const isApproved = req.status === 'approved'
+          return (
+            <div key={req.id} className="card" style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#264653' }}>
+                    🐹 {req.animalType}{req.animalName ? `（${req.animalName}）` : ''}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: 2 }}>
+                    {new Date(req.submittedAt).toLocaleString('ja-JP')}
+                  </div>
+                </div>
+                <span style={{
+                  background: isPending ? '#fef3c7' : isApproved ? '#e8f6f5' : '#fee2e2',
+                  color: isPending ? '#d97706' : isApproved ? '#2a9d8f' : '#dc2626',
+                  padding: '4px 12px', borderRadius: 50, fontSize: '0.75rem', fontWeight: 700, flexShrink: 0
+                }}>
+                  {isPending ? '承諾待ち' : isApproved ? '承諾済み ✅' : 'お断り済み'}
+                </span>
+              </div>
+
+              <div style={{ background: '#f9fafb', borderRadius: 10, padding: '10px 12px', marginBottom: 10 }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>症状・状況</div>
+                <p style={{ fontSize: '0.85rem', color: '#264653', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{req.symptoms}</p>
+              </div>
+
+              {req.imageData && (
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', marginBottom: 6 }}>送信画像</div>
+                  <img src={req.imageData} alt="症状画像" style={{ width: '100%', borderRadius: 10, border: '1px solid #e5e7eb', maxHeight: 200, objectFit: 'contain', background: '#fff' }} />
+                </div>
+              )}
+
+              {req.videoName && (
+                <div style={{ marginBottom: 10, background: '#f0f0f0', borderRadius: 8, padding: '8px 12px', fontSize: '0.82rem', color: '#6b7280', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  🎥 <span>{req.videoName}</span>
+                </div>
+              )}
+
+              {isPending && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 4 }}>
+                  <button
+                    onClick={() => handleRequestAction(req.id, 'approved')}
+                    style={{ background: '#2a9d8f', color: '#fff', border: 'none', borderRadius: 10, padding: '11px', fontWeight: 700, fontSize: '0.92rem', cursor: 'pointer' }}
+                  >
+                    ✓ 承諾する
+                  </button>
+                  <button
+                    onClick={() => handleRequestAction(req.id, 'rejected')}
+                    style={{ background: '#fff', color: '#e05555', border: '1.5px solid #e05555', borderRadius: 10, padding: '11px', fontWeight: 700, fontSize: '0.92rem', cursor: 'pointer' }}
+                  >
+                    ✗ お断りする
+                  </button>
+                </div>
+              )}
+
+              {isApproved && (
+                <div style={{ background: '#e8f6f5', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: '1.2rem' }}>💬</span>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#2a9d8f' }}>相談開始済み</div>
+                    <div style={{ fontSize: '0.75rem', color: '#5a8fa3' }}>
+                      {req.reviewedAt && new Date(req.reviewedAt).toLocaleString('ja-JP')}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {req.status === 'rejected' && (
+                <div style={{ background: '#fff0f0', borderRadius: 10, padding: '10px 14px', fontSize: '0.82rem', color: '#e05555', fontWeight: 600 }}>
+                  お断り済み。飼い主へ通知・自動返金が行われます。
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
   return (
     <div className="page">
       {/* Hero */}
@@ -348,15 +503,17 @@ export default function VetDashboard() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', padding: '16px 16px 0', gap: 8, borderBottom: '1px solid #e5e7eb', background: '#fff' }}>
+      <div style={{ display: 'flex', padding: '16px 16px 0', gap: 4, borderBottom: '1px solid #e5e7eb', background: '#fff', overflowX: 'auto' }}>
         {[
           { key: 'overview', label: '報酬・概要' },
+          { key: 'requests', label: `相談リクエスト${pendingCount > 0 ? ` (${pendingCount})` : ''}` },
           { key: 'register', label: application ? '登録状況' : '登録申請' },
           { key: 'shift', label: 'シフト管理' },
         ].map(t => (
           <button key={t.key} onClick={() => setActiveTab(t.key)} style={{
-            padding: '8px 12px', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem',
-            background: 'none', color: activeTab === t.key ? '#2a9d8f' : '#9ca3af',
+            padding: '8px 10px', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem',
+            background: 'none', whiteSpace: 'nowrap',
+            color: activeTab === t.key ? '#2a9d8f' : '#9ca3af',
             borderBottom: activeTab === t.key ? '2px solid #2a9d8f' : '2px solid transparent',
           }}>{t.label}</button>
         ))}
@@ -365,32 +522,26 @@ export default function VetDashboard() {
       <div style={{ padding: 16 }}>
         {activeTab === 'overview' && (
           <>
-            <div className="card" style={{ background: 'linear-gradient(135deg, #e8f6f5, #d1f0ec)', border: '1px solid #2a9d8f' }}>
-              <h3 style={{ fontWeight: 800, color: '#2a9d8f', marginBottom: 16 }}>💰 報酬の仕組み</h3>
-              <div style={{ textAlign: 'center', marginBottom: 16 }}>
-                <div style={{ fontSize: '2.5rem', fontWeight: 900, color: '#2a9d8f' }}>50%</div>
-                <div style={{ color: '#264653', fontWeight: 700 }}>相談料を獣医師がもらえます</div>
-              </div>
-              <div style={{ fontSize: '0.78rem', color: '#6b7280', marginBottom: 10, textAlign: 'center' }}>
-                ※決済手数料3.6%を差し引いた実際の受取金額
-              </div>
-              {[
-                { label: '相談料（15分）', base: 1100 },
-                { label: '延長料金（+5分）', base: 400 },
-                { label: '延長料金（+15分）', base: 1250 },
-              ].map((row, i) => {
-                const net = Math.floor(row.base * (1 - 0.036))
-                return (
-                  <div key={row.label} style={{ padding: '10px 0', fontSize: '0.85rem', borderBottom: i < 2 ? '1px solid rgba(42,157,143,0.2)' : 'none' }}>
-                    <div style={{ color: '#6b7280', marginBottom: 4 }}>{row.label}</div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.78rem', color: '#9ca3af' }}>¥{row.base.toLocaleString()} − 手数料(3.6%)</span>
-                      <span style={{ fontWeight: 800, color: '#2a9d8f', fontSize: '1rem' }}>¥{net.toLocaleString()}</span>
-                    </div>
-                  </div>
-                )
-              })}
+            {/* 50% headline */}
+            <div style={{ background: 'linear-gradient(135deg, #e8f6f5, #d1f0ec)', border: '1px solid #2a9d8f', borderRadius: 14, padding: '16px 20px', marginBottom: 16, textAlign: 'center' }}>
+              <div style={{ fontSize: '2.5rem', fontWeight: 900, color: '#2a9d8f' }}>50%</div>
+              <div style={{ color: '#264653', fontWeight: 700 }}>相談料を獣医師がもらえます</div>
+              <div style={{ fontSize: '0.78rem', color: '#6b7280', marginTop: 4 }}>※決済手数料3.6%を差し引いた金額</div>
             </div>
+
+            <RewardTable
+              title="犬・猫"
+              emoji="🐕"
+              items={DOG_CAT_ITEMS}
+            />
+
+            <RewardTable
+              title="小動物・鳥・エキゾチック"
+              emoji="🐹"
+              items={EXOTIC_ITEMS}
+              note="飼い主が動物の種類・症状の詳細・画像・動画を事前に送信します。内容を確認して承諾ボタンを押した場合のみ相談が開始されます。対応できない場合はお断りを選択してください。"
+            />
+
             <div className="card">
               <h3 style={{ fontWeight: 700, marginBottom: 12 }}>✨ 在籍のメリット</h3>
               {[
@@ -398,8 +549,8 @@ export default function VetDashboard() {
                 { icon: '⏰', title: '自由なシフト', desc: '空き時間を有効活用' },
                 { icon: '💳', title: '毎月末払い', desc: '銀行振込で確実にお支払い' },
                 { icon: '📈', title: '評価UP', desc: 'レビューで指名数が増加' },
-              ].map(b => (
-                <div key={b.title} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: '1px solid #e5e7eb', alignItems: 'flex-start' }}>
+              ].map((b, i, arr) => (
+                <div key={b.title} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: i < arr.length - 1 ? '1px solid #e5e7eb' : 'none', alignItems: 'flex-start' }}>
                   <span style={{ fontSize: '1.5rem' }}>{b.icon}</span>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{b.title}</div>
@@ -410,6 +561,8 @@ export default function VetDashboard() {
             </div>
           </>
         )}
+
+        {activeTab === 'requests' && renderRequests()}
 
         {activeTab === 'register' && (application ? renderApplicationStatus() : renderRegisterForm())}
 

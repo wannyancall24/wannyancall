@@ -1,5 +1,13 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+
+const REQUESTS_KEY = 'exoticRequests'
+function loadRequests() {
+  try { return JSON.parse(localStorage.getItem(REQUESTS_KEY)) || [] } catch { return [] }
+}
+function saveRequests(reqs) {
+  localStorage.setItem(REQUESTS_KEY, JSON.stringify(reqs))
+}
 
 const VETS = [
   { id: 1, name: '田中 健一', specialty: '内科・皮膚科', rating: 4.9, count: 312, photo: '👨‍⚕️', tags: ['犬', '猫'], available: true },
@@ -55,11 +63,45 @@ function PriceTable({ items }) {
 
 // Modal for exotic animal consultation request
 function ExoticModal({ onClose }) {
-  const [step, setStep] = useState('form') // 'form' | 'sent'
+  const [step, setStep] = useState('form') // 'form' | 'sent' | 'approved' | 'rejected'
+  const [requestId, setRequestId] = useState(null)
   const [animalType, setAnimalType] = useState('')
   const [animalName, setAnimalName] = useState('')
   const [symptoms, setSymptoms] = useState('')
+  const [imageData, setImageData] = useState(null)
+  const [imageName, setImageName] = useState('')
+  const [videoName, setVideoName] = useState('')
   const [errors, setErrors] = useState({})
+  const imageRef = useRef()
+  const videoRef = useRef()
+
+  // 獣医師が承諾/お断りしたら更新
+  useEffect(() => {
+    if (!requestId) return
+    const handler = () => {
+      const reqs = loadRequests()
+      const req = reqs.find(r => r.id === requestId)
+      if (req?.status === 'approved') setStep('approved')
+      if (req?.status === 'rejected') setStep('rejected')
+    }
+    window.addEventListener('exoticRequestUpdated', handler)
+    return () => window.removeEventListener('exoticRequestUpdated', handler)
+  }, [requestId])
+
+  function handleImageChange(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    setImageName(file.name)
+    const reader = new FileReader()
+    reader.onload = ev => setImageData(ev.target.result)
+    reader.readAsDataURL(file)
+  }
+
+  function handleVideoChange(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    setVideoName(file.name)
+  }
 
   function validate() {
     const e = {}
@@ -71,6 +113,17 @@ function ExoticModal({ onClose }) {
   function handleSubmit() {
     const e = validate()
     if (Object.keys(e).length > 0) { setErrors(e); return }
+    const id = Date.now()
+    const newReq = {
+      id, animalType, animalName, symptoms,
+      imageData, imageName, videoName,
+      status: 'pending',
+      submittedAt: new Date().toISOString(),
+    }
+    const reqs = loadRequests()
+    saveRequests([...reqs, newReq])
+    window.dispatchEvent(new Event('exoticRequestUpdated'))
+    setRequestId(id)
     setStep('sent')
   }
 
@@ -78,14 +131,14 @@ function ExoticModal({ onClose }) {
     <div style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
       display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-      zIndex: 1000, padding: '0'
+      zIndex: 1000,
     }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div style={{
         background: '#fff', borderRadius: '20px 20px 0 0',
         width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto',
         padding: '24px 20px 40px'
       }}>
-        {step === 'form' ? (
+        {step === 'form' && (
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div>
@@ -95,18 +148,15 @@ function ExoticModal({ onClose }) {
               <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.3rem', color: '#9ca3af', cursor: 'pointer', padding: 4 }}>✕</button>
             </div>
 
-            <div style={{ background: '#e8f6f5', borderRadius: 10, padding: '10px 14px', marginBottom: 20, fontSize: '0.82rem', color: '#2a9d8f' }}>
+            <div style={{ background: '#e8f6f5', borderRadius: 10, padding: '10px 14px', marginBottom: 20, fontSize: '0.82rem', color: '#2a9d8f', lineHeight: 1.6 }}>
               小動物・鳥・エキゾチックアニマルは専門知識が必要なため、獣医師が対応可否を確認してから相談を開始します。
             </div>
 
             <div className="form-group">
               <label className="form-label">動物の種類 <span style={{ color: '#e05555' }}>*</span></label>
-              <select
-                className="form-select"
-                value={animalType}
+              <select className="form-select" value={animalType}
                 onChange={e => { setAnimalType(e.target.value); setErrors(v => ({ ...v, animalType: '' })) }}
-                style={{ border: errors.animalType ? '1.5px solid #e05555' : undefined }}
-              >
+                style={{ border: errors.animalType ? '1.5px solid #e05555' : undefined }}>
                 <option value="">選択してください</option>
                 {ANIMAL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
@@ -115,26 +165,58 @@ function ExoticModal({ onClose }) {
 
             <div className="form-group">
               <label className="form-label">動物の名前（任意）</label>
-              <input
-                className="form-input"
-                type="text"
-                placeholder="例：ぴょん"
-                value={animalName}
-                onChange={e => setAnimalName(e.target.value)}
-              />
+              <input className="form-input" type="text" placeholder="例：ぴょん" value={animalName} onChange={e => setAnimalName(e.target.value)} />
             </div>
 
             <div className="form-group">
               <label className="form-label">症状・状況 <span style={{ color: '#e05555' }}>*</span></label>
-              <textarea
-                className="form-input"
-                rows={5}
-                placeholder="例：昨日から食欲がなく、元気がありません。鼻水も出ています。いつ頃からどんな症状が出ているか、できるだけ詳しく教えてください。"
+              <textarea className="form-input" rows={4}
+                placeholder="例：昨日から食欲がなく元気がありません。いつ頃からどんな症状か、できるだけ詳しく教えてください。"
                 value={symptoms}
                 onChange={e => { setSymptoms(e.target.value); setErrors(v => ({ ...v, symptoms: '' })) }}
-                style={{ resize: 'none', border: errors.symptoms ? '1.5px solid #e05555' : undefined }}
-              />
+                style={{ resize: 'none', border: errors.symptoms ? '1.5px solid #e05555' : undefined }} />
               {errors.symptoms && <div style={{ color: '#e05555', fontSize: '0.78rem', marginTop: 4 }}>{errors.symptoms}</div>}
+            </div>
+
+            {/* 画像アップロード */}
+            <div className="form-group">
+              <label className="form-label">画像を送る（任意）</label>
+              <input ref={imageRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageChange} />
+              <div onClick={() => imageRef.current.click()} style={{
+                border: '1.5px dashed #2a9d8f', borderRadius: 10, padding: '14px',
+                textAlign: 'center', cursor: 'pointer', background: imageData ? '#e8f6f5' : '#f9fafb'
+              }}>
+                {imageData ? (
+                  <>
+                    <img src={imageData} alt="プレビュー" style={{ maxWidth: '100%', maxHeight: 140, borderRadius: 8, marginBottom: 4 }} />
+                    <div style={{ fontSize: '0.78rem', color: '#2a9d8f' }}>✅ {imageName}（タップして変更）</div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: '1.6rem' }}>🖼️</div>
+                    <div style={{ fontSize: '0.82rem', color: '#6b7280', marginTop: 4 }}>タップして画像を選択</div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* 動画アップロード */}
+            <div className="form-group">
+              <label className="form-label">動画を送る（任意）</label>
+              <input ref={videoRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={handleVideoChange} />
+              <div onClick={() => videoRef.current.click()} style={{
+                border: '1.5px dashed #2a9d8f', borderRadius: 10, padding: '14px',
+                textAlign: 'center', cursor: 'pointer', background: videoName ? '#e8f6f5' : '#f9fafb'
+              }}>
+                {videoName ? (
+                  <div style={{ fontSize: '0.82rem', color: '#2a9d8f' }}>✅ {videoName}（タップして変更）</div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: '1.6rem' }}>🎥</div>
+                    <div style={{ fontSize: '0.82rem', color: '#6b7280', marginTop: 4 }}>タップして動画を選択</div>
+                  </>
+                )}
+              </div>
             </div>
 
             <button className="btn-primary" onClick={handleSubmit} style={{ background: '#2a9d8f' }}>
@@ -144,29 +226,57 @@ function ExoticModal({ onClose }) {
               キャンセル
             </button>
           </>
-        ) : (
+        )}
+
+        {step === 'sent' && (
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <div style={{ fontSize: '3rem', marginBottom: 16 }}>📨</div>
+            <div style={{ fontSize: '3rem', marginBottom: 16 }}>⏳</div>
             <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#264653', marginBottom: 10 }}>
-              依頼を送信しました
+              承諾待ちです
             </div>
-            <div style={{ fontSize: '0.88rem', color: '#6b7280', lineHeight: 1.7, marginBottom: 24 }}>
-              獣医師が内容を確認し、対応可否をご連絡します。<br />
-              承諾後、相談を開始できます。<br />
+            <div style={{ fontSize: '0.88rem', color: '#6b7280', lineHeight: 1.7, marginBottom: 20 }}>
+              獣医師が内容を確認しています。<br />
+              承諾後に相談を開始できます。<br />
               <span style={{ color: '#2a9d8f', fontWeight: 600 }}>通常15〜30分以内に返答</span>いたします。
             </div>
-            <div style={{ background: '#e8f6f5', borderRadius: 12, padding: '14px 16px', textAlign: 'left', marginBottom: 24, fontSize: '0.85rem', color: '#264653' }}>
+            <div style={{ background: '#f9fafb', borderRadius: 12, padding: '14px 16px', textAlign: 'left', marginBottom: 20, fontSize: '0.85rem', color: '#264653' }}>
               <div style={{ fontWeight: 700, marginBottom: 6 }}>送信内容</div>
               <div>動物の種類：{animalType}</div>
               {animalName && <div>名前：{animalName}</div>}
-              <div style={{ marginTop: 6, color: '#6b7280', whiteSpace: 'pre-wrap' }}>{symptoms}</div>
+              <div style={{ marginTop: 6, color: '#6b7280', whiteSpace: 'pre-wrap', fontSize: '0.82rem' }}>{symptoms}</div>
+              {imageData && <div style={{ marginTop: 6 }}><img src={imageData} alt="送信画像" style={{ width: '100%', borderRadius: 8, maxHeight: 120, objectFit: 'cover' }} /></div>}
+              {videoName && <div style={{ marginTop: 6, color: '#6b7280', fontSize: '0.78rem' }}>🎥 {videoName}</div>}
             </div>
             <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginBottom: 20 }}>
-              獣医師が対応できない場合は、近くの動物病院をご案内します。
+              対応できない場合は近くの動物病院をご案内・自動返金されます。
             </div>
-            <button className="btn-primary" onClick={onClose} style={{ background: '#2a9d8f' }}>
-              閉じる
-            </button>
+            <button className="btn-primary" onClick={onClose} style={{ background: '#2a9d8f' }}>閉じる</button>
+          </div>
+        )}
+
+        {step === 'approved' && (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div style={{ fontSize: '3rem', marginBottom: 16 }}>🎉</div>
+            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#2a9d8f', marginBottom: 10 }}>承諾されました！</div>
+            <div style={{ fontSize: '0.88rem', color: '#6b7280', lineHeight: 1.7, marginBottom: 24 }}>
+              獣医師が相談を承諾しました。<br />そのまま相談を開始してください。
+            </div>
+            <button className="btn-primary" onClick={onClose} style={{ background: '#2a9d8f' }}>相談を開始する →</button>
+          </div>
+        )}
+
+        {step === 'rejected' && (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div style={{ fontSize: '3rem', marginBottom: 16 }}>😔</div>
+            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#264653', marginBottom: 10 }}>お断りされました</div>
+            <div style={{ fontSize: '0.88rem', color: '#6b7280', lineHeight: 1.7, marginBottom: 20 }}>
+              大変申し訳ありません。今回の相談は対応できませんでした。<br />
+              <span style={{ color: '#2a9d8f', fontWeight: 600 }}>自動返金</span>いたします。
+            </div>
+            <div style={{ background: '#e8f6f5', borderRadius: 12, padding: '12px 16px', marginBottom: 24, fontSize: '0.85rem', color: '#2a9d8f' }}>
+              近くの動物病院を探す場合は「獣医師を探す」からご確認ください。
+            </div>
+            <button className="btn-primary" onClick={onClose} style={{ background: '#2a9d8f' }}>閉じる</button>
           </div>
         )}
       </div>
