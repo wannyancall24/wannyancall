@@ -105,15 +105,17 @@ export default function Auth() {
       {/* Top gradient */}
       <div style={{
         background: 'linear-gradient(150deg, #2a9d8f 0%, #21867a 100%)',
-        padding: '40px 20px 60px', textAlign: 'center', color: '#fff',
+        padding: '24px 20px 36px', textAlign: 'center', color: '#fff',
         clipPath: 'ellipse(120% 100% at 50% 0%)',
       }}>
-        <div style={{ fontSize: '3.2rem', marginBottom: 8 }}>🐾</div>
-        <h1 style={{ fontWeight: 800, fontSize: '1.5rem', marginBottom: 4 }}>WanNyanCall24</h1>
-        <p style={{ opacity: 0.85, fontSize: '0.88rem' }}>深夜でも、田舎でも獣医師に相談できる</p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <span style={{ fontSize: '2rem' }}>🐾</span>
+          <h1 style={{ fontWeight: 800, fontSize: '1.3rem' }}>WanNyanCall24</h1>
+        </div>
+        <p style={{ opacity: 0.85, fontSize: '0.82rem', marginTop: 4 }}>深夜でも、田舎でも獣医師に相談できる</p>
       </div>
 
-      <div style={{ padding: '0 20px', marginTop: -24 }}>
+      <div style={{ padding: '0 20px', marginTop: -16 }}>
         <div style={{ background: '#fff', borderRadius: 20, boxShadow: '0 4px 24px rgba(42,157,143,0.12)', padding: '24px 20px' }}>
 
           {/* Login / Register Tabs */}
@@ -141,9 +143,10 @@ export default function Auth() {
                   fontSize: '0.88rem', transition: 'all 0.15s',
                   border: userType === t.key ? '2px solid #2a9d8f' : '2px solid #e5e7eb',
                   background: userType === t.key ? '#e8f6f5' : '#fff',
-                  color: userType === t.key ? '#2a9d8f' : '#9ca3af',
+                  color: userType === t.key ? '#2a9d8f' : '#6b7280',
                 }}>
-                  {t.icon} {t.label}
+                  <span style={{ fontSize: '1.1rem', filter: 'saturate(2) brightness(0.85)' }}>{t.icon}</span>
+                  {' '}{t.label}
                   {userType === t.key && <div style={{ fontSize: '0.72rem', fontWeight: 600, marginTop: 2 }}>{t.sub}</div>}
                 </button>
               ))}

@@ -72,9 +72,9 @@ function AppInner() {
         } />
         <Route path="/find" element={<FindVet />} />
         <Route path="/vet/:id" element={<VetProfile />} />
-        <Route path="/booking/:id" element={<AuthRoute><Booking /></AuthRoute>} />
-        <Route path="/history" element={<AuthRoute><History /></AuthRoute>} />
-        <Route path="/mypage" element={<AuthRoute><MyPage /></AuthRoute>} />
+        <Route path="/booking/:id" element={<Booking />} />
+        <Route path="/history" element={<History />} />
+        <Route path="/mypage" element={<MyPage />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/legal" element={<Legal />} />
         <Route path="/admin" element={<Admin />} />
