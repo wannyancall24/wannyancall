@@ -158,21 +158,21 @@ export default function VetDashboard() {
   const stepLabels = ['基本情報', '免許証', '経歴', '確認・申請']
 
   const DOG_CAT_ITEMS = [
-    { label: '基本相談 15分', base: 3000, vet: 1446 },
-    { label: '延長 +5分', base: 1000, vet: 482 },
-    { label: '延長 +15分', base: 3000, vet: 1446 },
-    { label: '夜間加算（20〜22時）', base: 1000, vet: 482 },
-    { label: '深夜加算（22〜8時）', base: 1500, vet: 723 },
-    { label: '指名料', base: 500, vet: 482, isNomination: true },
+    { label: '基本相談 15分', base: 3000, vet: 1500 },
+    { label: '延長 +5分', base: 1000, vet: 500 },
+    { label: '延長 +15分', base: 3000, vet: 1500 },
+    { label: '夜間加算（20〜22時）', base: 1000, vet: 500 },
+    { label: '深夜加算（22〜8時）', base: 1500, vet: 750 },
+    { label: '指名料', base: 500, vet: 250 },
   ]
 
   const EXOTIC_ITEMS = [
-    { label: '基本相談 15分', base: 4500, vet: 2169 },
-    { label: '延長 +5分', base: 1500, vet: 723 },
-    { label: '延長 +15分', base: 4500, vet: 2169 },
-    { label: '夜間加算（20〜22時）', base: 1000, vet: 482 },
-    { label: '深夜加算（22〜8時）', base: 1500, vet: 723 },
-    { label: '指名料', base: 500, vet: 482, isNomination: true },
+    { label: '基本相談 15分', base: 4500, vet: 2250 },
+    { label: '延長 +5分', base: 1500, vet: 750 },
+    { label: '延長 +15分', base: 4500, vet: 2250 },
+    { label: '夜間加算（20〜22時）', base: 1000, vet: 500 },
+    { label: '深夜加算（22〜8時）', base: 1500, vet: 750 },
+    { label: '指名料', base: 500, vet: 250 },
   ]
 
   const renderApplicationStatus = () => (
