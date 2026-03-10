@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react'
 import { supabase, supabaseReady } from '../lib/supabase'
 
 const AuthContext = createContext(null)
@@ -8,23 +8,8 @@ export function AuthProvider({ children }) {
   const [role, setRole] = useState(null)
   const [loading, setLoading] = useState(true)
   const [authError, setAuthError] = useState(null)
-
-  const fetchRole = useCallback(async (userId) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
-        .single()
-      if (error) {
-        console.warn('fetchRole error:', error.message)
-        return null
-      }
-      return data?.role ?? null
-    } catch {
-      return null
-    }
-  }, [])
+  const initialized = useRef(false)
+  const currentUserId = useRef(null)
 
   useEffect(() => {
     if (!supabaseReady) {
@@ -32,67 +17,72 @@ export function AuthProvider({ children }) {
       return
     }
 
-    let isMounted = true
+    // StrictMode対策: 二重実行を防止
+    if (initialized.current) return
+    initialized.current = true
 
-    async function init() {
+    async function fetchRole(userId) {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (!isMounted) return
-        const currentUser = session?.user ?? null
-        setUser(currentUser)
-        if (currentUser) {
-          const r = await fetchRole(currentUser.id)
-          if (isMounted) setRole(r)
-        }
-      } catch (e) {
-        console.error('Auth init error:', e)
-        if (isMounted) setAuthError(`Auth init: ${e.message}`)
-      } finally {
-        if (isMounted) setLoading(false)
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .single()
+        if (error) return null
+        return data?.role ?? null
+      } catch {
+        return null
       }
     }
 
-    init()
+    // 初回セッション取得
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const u = session?.user ?? null
+      currentUserId.current = u?.id ?? null
+      setUser(u)
+      if (u) {
+        const r = await fetchRole(u.id)
+        setRole(r)
+      }
+      setLoading(false)
+    }).catch((e) => {
+      setAuthError(`Auth init: ${e.message}`)
+      setLoading(false)
+    })
 
+    // ログイン/ログアウトイベントのみ監視
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (!isMounted) return
-        const currentUser = session?.user ?? null
-        setUser(currentUser)
-        if (currentUser) {
-          const r = await fetchRole(currentUser.id)
-          if (isMounted) setRole(r)
+      async (event, session) => {
+        // INITIAL_SESSION は init() で処理済みなのでスキップ
+        if (event === 'INITIAL_SESSION') return
+
+        const u = session?.user ?? null
+        const newId = u?.id ?? null
+
+        // 同じユーザーのTOKEN_REFRESHEDは無視（不要な再レンダリング防止）
+        if (event === 'TOKEN_REFRESHED' && newId === currentUserId.current) return
+
+        currentUserId.current = newId
+        setUser(u)
+
+        if (u) {
+          const r = await fetchRole(u.id)
+          setRole(r)
         } else {
           setRole(null)
         }
       }
     )
 
-    // タブに戻った時にセッションを再確認・リフレッシュ
-    function handleVisibilityChange() {
-      if (document.visibilityState === 'visible' && isMounted) {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (!isMounted) return
-          const currentUser = session?.user ?? null
-          setUser(currentUser)
-          if (!currentUser) {
-            setRole(null)
-          }
-        }).catch(() => {})
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
     return () => {
-      isMounted = false
       subscription.unsubscribe()
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [fetchRole])
+  }, [])
 
   const signOut = useCallback(async () => {
     if (!supabaseReady) return
     await supabase.auth.signOut()
+    currentUserId.current = null
     setUser(null)
     setRole(null)
   }, [])
