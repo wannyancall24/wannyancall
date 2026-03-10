@@ -68,9 +68,25 @@ export function AuthProvider({ children }) {
       }
     )
 
+    // タブに戻った時にセッションを再確認・リフレッシュ
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible' && isMounted) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (!isMounted) return
+          const currentUser = session?.user ?? null
+          setUser(currentUser)
+          if (!currentUser) {
+            setRole(null)
+          }
+        }).catch(() => {})
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
     return () => {
       isMounted = false
       subscription.unsubscribe()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [fetchRole])
 
