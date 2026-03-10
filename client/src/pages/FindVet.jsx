@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { supabase, supabaseReady } from '../lib/supabase'
 
 const SPECIALTIES = ['すべて', '内科', '外科', '眼科', '神経科', '小動物']
 
@@ -18,6 +18,7 @@ export default function FindVet() {
   const navigate = useNavigate()
   const [vets, setVets] = useState([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState(null)
   const [animal, setAnimal] = useState('全て')
   const [specialty, setSpecialty] = useState('すべて')
   const [nightOnly, setNightOnly] = useState(false)
@@ -29,8 +30,17 @@ export default function FindVet() {
 
   async function fetchVets() {
     setLoading(true)
-    const { data, error } = await supabase.from('vets').select('*')
-    if (!error) setVets(data)
+    setFetchError(null)
+    try {
+      const { data, error } = await supabase.from('vets').select('*')
+      if (error) {
+        setFetchError(`vets: ${error.message} (code: ${error.code})`)
+      } else {
+        setVets(data || [])
+      }
+    } catch (e) {
+      setFetchError(`vets: ${e.message}`)
+    }
     setLoading(false)
   }
 
@@ -87,7 +97,15 @@ export default function FindVet() {
           </select>
         </div>
 
-        {loading ? (
+        {fetchError ? (
+          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+            <div style={{ fontSize: '3rem', marginBottom: 12 }}>⚠️</div>
+            <p style={{ fontWeight: 600, color: '#dc2626', marginBottom: 8 }}>データ取得エラー</p>
+            <p style={{ fontSize: '0.82rem', color: '#6b7280', lineHeight: 1.6, wordBreak: 'break-all' }}>{fetchError}</p>
+            <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: 8 }}>supabaseReady: {String(supabaseReady)}</p>
+            <button onClick={fetchVets} className="btn-secondary" style={{ marginTop: 12, width: 'auto', padding: '8px 20px' }}>再試行</button>
+          </div>
+        ) : loading ? (
           <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9ca3af' }}>
             <div style={{ fontSize: '3rem', marginBottom: 12 }}>🔍</div>
             <p>読み込み中...</p>

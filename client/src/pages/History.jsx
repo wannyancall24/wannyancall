@@ -37,21 +37,32 @@ export default function History() {
   const { user } = useAuth()
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState(null)
   const [filter, setFilter] = useState('all')
   const [reportTarget, setReportTarget] = useState(null)
   const [blockTarget, setBlockTarget] = useState(null)
 
   useEffect(() => {
-    if (!user) return
+    if (!user) {
+      setLoading(false)
+      return
+    }
     async function fetchHistory() {
       setLoading(true)
-      const { data, error } = await supabase
-        .from('consultations')
-        .select('*, vets(id, name, specialty, photo)')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-      if (!error && data) {
-        setHistory(data)
+      setFetchError(null)
+      try {
+        const { data, error } = await supabase
+          .from('consultations')
+          .select('*, vets(id, name, specialty, photo)')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+        if (error) {
+          setFetchError(`consultations: ${error.message} (code: ${error.code})`)
+        } else {
+          setHistory(data || [])
+        }
+      } catch (e) {
+        setFetchError(`consultations: ${e.message}`)
       }
       setLoading(false)
     }
@@ -84,6 +95,16 @@ export default function History() {
   const filtered = filter === 'all' ? displayHistory : displayHistory.filter(h => h.status === filter)
   const completedList = displayHistory.filter(h => h.status === '完了')
   const totalSpent = completedList.reduce((s, h) => s + h.price, 0)
+
+  if (fetchError) {
+    return (
+      <div className="page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', padding: 24 }}>
+        <div style={{ fontSize: '3rem', marginBottom: 12 }}>⚠️</div>
+        <p style={{ fontWeight: 600, color: '#dc2626', marginBottom: 8 }}>データ取得エラー</p>
+        <p style={{ fontSize: '0.82rem', color: '#6b7280', lineHeight: 1.6, textAlign: 'center', wordBreak: 'break-all' }}>{fetchError}</p>
+      </div>
+    )
+  }
 
   if (loading) {
     return (

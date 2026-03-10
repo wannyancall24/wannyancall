@@ -12,10 +12,11 @@ const PETS = [
 
 export default function MyPage() {
   const navigate = useNavigate()
-  const { user, loading: authLoading, signOut } = useAuth()
+  const { user, loading: authLoading, authError, signOut } = useAuth()
   const [profile, setProfile] = useState(null)
   const [profileLoading, setProfileLoading] = useState(false)
   const [profileFetched, setProfileFetched] = useState(false)
+  const [fetchError, setFetchError] = useState(null)
   const [activeTab, setActiveTab] = useState('profile')
   const [editMode, setEditMode] = useState(false)
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
@@ -34,18 +35,25 @@ export default function MyPage() {
     let cancelled = false
     async function fetchProfile() {
       setProfileLoading(true)
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
-      if (cancelled) return
-      if (error) {
-        console.error('Failed to fetch profile:', error.message)
+      setFetchError(null)
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single()
+        if (cancelled) return
+        if (error) {
+          setFetchError(`profiles: ${error.message} (code: ${error.code})`)
+        }
+        setProfile(data)
+      } catch (e) {
+        if (!cancelled) setFetchError(`profiles: ${e.message}`)
       }
-      setProfile(data)
-      setProfileLoading(false)
-      setProfileFetched(true)
+      if (!cancelled) {
+        setProfileLoading(false)
+        setProfileFetched(true)
+      }
     }
     fetchProfile()
     return () => { cancelled = true }
@@ -81,6 +89,19 @@ export default function MyPage() {
     { key: 'pets', label: '🐾 ペット' },
     { key: 'plan', label: '💳 プラン' },
   ]
+
+  // エラー表示
+  if (authError || fetchError) {
+    const errMsg = [authError, fetchError].filter(Boolean).join('\n')
+    return (
+      <div className="page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', padding: 24 }}>
+        <div style={{ fontSize: '3rem', marginBottom: 12 }}>⚠️</div>
+        <p style={{ fontWeight: 600, color: '#dc2626', marginBottom: 8 }}>エラー</p>
+        <p style={{ fontSize: '0.82rem', color: '#6b7280', lineHeight: 1.6, textAlign: 'center', wordBreak: 'break-all', whiteSpace: 'pre-line' }}>{errMsg}</p>
+        <button onClick={() => window.location.reload()} className="btn-secondary" style={{ marginTop: 12, width: 'auto', padding: '8px 20px' }}>再読み込み</button>
+      </div>
+    )
+  }
 
   // ローディング表示
   if (authLoading || (!profileFetched && userId)) {

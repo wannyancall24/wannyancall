@@ -7,6 +7,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [role, setRole] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [authError, setAuthError] = useState(null)
 
   const fetchRole = useCallback(async (userId) => {
     try {
@@ -45,6 +46,7 @@ export function AuthProvider({ children }) {
         }
       } catch (e) {
         console.error('Auth init error:', e)
+        if (isMounted) setAuthError(`Auth init: ${e.message}`)
       } finally {
         if (isMounted) setLoading(false)
       }
@@ -80,7 +82,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, role, loading, signOut }}>
+    <AuthContext.Provider value={{ user, role, loading, authError, signOut }}>
       {children}
     </AuthContext.Provider>
   )
