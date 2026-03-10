@@ -1,35 +1,97 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ReportModal from '../components/ReportModal'
 import BlockModal from '../components/BlockModal'
+import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../lib/supabase'
 
-const HISTORY = [
-  { id: 1, vetId: 1, vet: '田中 健一', photo: '👨‍⚕️', specialty: '内科・皮膚科', date: '2024-12-10', time: '21:30', duration: 15, price: 4200, status: '完了', topic: '皮膚のかゆみについて', pet: 'ポチ', timeType: '深夜' },
-  { id: 2, vetId: 2, vet: '鈴木 麻衣', photo: '👩‍⚕️', specialty: '外科・整形外科', date: '2024-11-25', time: '14:00', duration: 20, price: 3800, status: '完了', topic: '足を引きずる件', pet: 'ポチ', timeType: '通常' },
-  { id: 3, vetId: 4, vet: '伊藤 さくら', photo: '👩‍⚕️', specialty: '内科・腫瘍科', date: '2024-11-10', time: '10:00', duration: 15, price: 3000, status: '完了', topic: '食欲不振について', pet: 'みけ', timeType: '通常' },
-  { id: 4, vetId: 1, vet: '田中 健一', photo: '👨‍⚕️', specialty: '内科・皮膚科', date: '2024-12-20', time: '15:00', duration: 15, price: 3000, status: '予約済み', topic: '定期健康チェック', pet: 'ポチ', timeType: '通常' },
-]
+const STATUS_MAP = {
+  completed: '完了',
+  reserved: '予約済み',
+  cancelled: 'キャンセル',
+  in_progress: '相談中',
+}
 
 const STATUS_STYLE = {
   '完了':   { bg: '#e8f6f5', color: '#2a9d8f' },
   '予約済み': { bg: '#fef3c7', color: '#d97706' },
   'キャンセル': { bg: '#fee2e2', color: '#dc2626' },
+  '相談中': { bg: '#ede9fe', color: '#7c3aed' },
+}
+
+function getTimeType(startedAt) {
+  if (!startedAt) return null
+  const hour = new Date(startedAt).getHours()
+  if (hour >= 0 && hour < 6) return '深夜'
+  if (hour >= 20 || hour >= 22) return '夜間'
+  return null
 }
 
 const TIME_TYPE_STYLE = {
   '深夜': { bg: '#ede9fe', color: '#7c3aed', label: '🌙深夜' },
   '夜間': { bg: '#fef3c7', color: '#d97706', label: '🌆夜間' },
-  '通常': null,
 }
 
 export default function History() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const [history, setHistory] = useState([])
+  const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
-  const [reportTarget, setReportTarget] = useState(null) // { name, consultationId }
-  const [blockTarget, setBlockTarget] = useState(null)   // { name }
+  const [reportTarget, setReportTarget] = useState(null)
+  const [blockTarget, setBlockTarget] = useState(null)
 
-  const filtered = filter === 'all' ? HISTORY : HISTORY.filter(h => h.status === filter)
-  const totalSpent = HISTORY.filter(h => h.status === '完了').reduce((s, h) => s + h.price, 0)
+  useEffect(() => {
+    if (!user) return
+    async function fetchHistory() {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('consultations')
+        .select('*, vets(id, name, specialty, photo)')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+      if (!error && data) {
+        setHistory(data)
+      }
+      setLoading(false)
+    }
+    fetchHistory()
+  }, [user])
+
+  const displayHistory = history.map(h => {
+    const statusLabel = STATUS_MAP[h.status] || h.status
+    const startDate = h.started_at ? new Date(h.started_at) : (h.created_at ? new Date(h.created_at) : null)
+    const date = startDate ? startDate.toISOString().slice(0, 10) : ''
+    const time = startDate ? startDate.toTimeString().slice(0, 5) : ''
+    const timeType = getTimeType(h.started_at)
+    return {
+      id: h.id,
+      vetId: h.vet_id,
+      vet: h.vets?.name || '獣医師',
+      photo: h.vets?.photo || '👨‍⚕️',
+      specialty: h.vets?.specialty || '',
+      date,
+      time,
+      duration: h.duration || 0,
+      price: h.total_amount || h.base_amount || 0,
+      status: statusLabel,
+      topic: h.symptoms || '相談',
+      pet: h.pet || '',
+      timeType,
+    }
+  })
+
+  const filtered = filter === 'all' ? displayHistory : displayHistory.filter(h => h.status === filter)
+  const completedList = displayHistory.filter(h => h.status === '完了')
+  const totalSpent = completedList.reduce((s, h) => s + h.price, 0)
+
+  if (loading) {
+    return (
+      <div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <p style={{ color: '#9ca3af' }}>読み込み中...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="page">
@@ -38,7 +100,7 @@ export default function History() {
         <p style={{ fontSize: '0.82rem', opacity: 0.85, marginBottom: 4 }}>これまでの相談</p>
         <div style={{ display: 'flex', gap: 20 }}>
           <div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800 }}>{HISTORY.filter(h => h.status === '完了').length}<span style={{ fontSize: '1rem' }}>件</span></div>
+            <div style={{ fontSize: '1.8rem', fontWeight: 800 }}>{completedList.length}<span style={{ fontSize: '1rem' }}>件</span></div>
             <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>完了した相談</div>
           </div>
           <div style={{ width: 1, background: 'rgba(255,255,255,0.3)' }} />
@@ -74,7 +136,7 @@ export default function History() {
         ) : (
           filtered.map(h => {
             const st = STATUS_STYLE[h.status] || STATUS_STYLE['完了']
-            const tt = TIME_TYPE_STYLE[h.timeType]
+            const tt = h.timeType ? TIME_TYPE_STYLE[h.timeType] : null
             return (
               <div key={h.id} className="card" style={{ marginBottom: 12 }}>
                 {/* Header */}
@@ -92,13 +154,13 @@ export default function History() {
                 {/* Topic */}
                 <div style={{ background: '#f9fafb', borderRadius: 10, padding: '10px 12px', marginBottom: 10 }}>
                   <p style={{ fontSize: '0.88rem', color: '#264653', fontWeight: 600 }}>💬 {h.topic}</p>
-                  <p style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 3 }}>🐾 {h.pet}</p>
+                  {h.pet && <p style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 3 }}>🐾 {h.pet}</p>}
                 </div>
 
                 {/* Meta */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
                   <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>📅 {h.date} {h.time}〜</span>
-                  <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>⏱ {h.duration}分</span>
+                  {h.duration > 0 && <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>⏱ {h.duration}分</span>}
                   {tt && (
                     <span style={{ background: tt.bg, color: tt.color, padding: '2px 8px', borderRadius: 50, fontSize: '0.73rem', fontWeight: 700 }}>{tt.label}</span>
                   )}
