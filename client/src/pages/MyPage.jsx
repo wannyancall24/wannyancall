@@ -15,6 +15,7 @@ export default function MyPage() {
   const { user, loading: authLoading, signOut } = useAuth()
   const [profile, setProfile] = useState(null)
   const [profileLoading, setProfileLoading] = useState(false)
+  const [profileFetched, setProfileFetched] = useState(false)
   const [activeTab, setActiveTab] = useState('profile')
   const [editMode, setEditMode] = useState(false)
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
@@ -25,29 +26,26 @@ export default function MyPage() {
   const [showCardRegistration, setShowCardRegistration] = useState(false)
   const [card, setCard] = useState(getStoredCard)
 
+  const userId = user?.id
+
   useEffect(() => {
-    if (authLoading) return
-    if (!user) {
-      setProfileLoading(false)
-      return
-    }
+    if (authLoading || !userId || profileFetched) return
     async function fetchProfile() {
       setProfileLoading(true)
-      try {
-        const { data } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single()
-        setProfile(data)
-      } catch (e) {
-        console.error('Failed to fetch profile:', e)
-      } finally {
-        setProfileLoading(false)
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+      if (error) {
+        console.error('Failed to fetch profile:', error)
       }
+      setProfile(data)
+      setProfileLoading(false)
+      setProfileFetched(true)
     }
     fetchProfile()
-  }, [user, authLoading])
+  }, [authLoading, userId, profileFetched])
 
   async function handleSaveProfile(formData) {
     const { error } = await supabase
