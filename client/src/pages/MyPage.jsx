@@ -26,19 +26,28 @@ export default function MyPage() {
   const [card, setCard] = useState(getStoredCard)
 
   useEffect(() => {
-    if (!user) return
+    if (authLoading) return
+    if (!user) {
+      setProfileLoading(false)
+      return
+    }
     async function fetchProfile() {
       setProfileLoading(true)
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-      setProfile(data)
-      setProfileLoading(false)
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single()
+        setProfile(data)
+      } catch (e) {
+        console.error('Failed to fetch profile:', e)
+      } finally {
+        setProfileLoading(false)
+      }
     }
     fetchProfile()
-  }, [user])
+  }, [user, authLoading])
 
   async function handleSaveProfile(formData) {
     const { error } = await supabase
@@ -57,7 +66,20 @@ export default function MyPage() {
     { key: 'plan', label: '💳 プラン' },
   ]
 
-  if (authLoading || profileLoading) {
+  if (authLoading) {
+    return (
+      <div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <p style={{ color: '#9ca3af' }}>読み込み中...</p>
+      </div>
+    )
+  }
+
+  if (!user) {
+    navigate('/auth')
+    return null
+  }
+
+  if (profileLoading) {
     return (
       <div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
         <p style={{ color: '#9ca3af' }}>読み込み中...</p>
