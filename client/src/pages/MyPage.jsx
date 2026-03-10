@@ -1,16 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import CardRegistration from '../components/CardRegistration'
 import { getStoredCard, clearCard, getBrandLabel } from '../lib/stripeCard'
-
-const PROFILE = {
-  name: '山田 花子',
-  email: 'hanako@example.com',
-  tel: '090-1234-5678',
-  address: '東京都世田谷区〇〇',
-  plan: 'bought', // 'bought' | 'free'
-  planPurchasedAt: '2024-11-01',
-}
+import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../lib/supabase'
 
 const PETS = [
   { id: 1, name: 'ポチ', species: '犬', breed: 'トイプードル', age: 3, weight: '3.2kg', icon: '🐕', birthday: '2021-04-10', note: 'アレルギー：なし' },
@@ -19,6 +12,9 @@ const PETS = [
 
 export default function MyPage() {
   const navigate = useNavigate()
+  const { user, signOut } = useAuth()
+  const [profile, setProfile] = useState(null)
+  const [profileLoading, setProfileLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('profile')
   const [editMode, setEditMode] = useState(false)
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
@@ -29,11 +25,52 @@ export default function MyPage() {
   const [showCardRegistration, setShowCardRegistration] = useState(false)
   const [card, setCard] = useState(getStoredCard)
 
+  useEffect(() => {
+    if (!user) return
+    async function fetchProfile() {
+      setProfileLoading(true)
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+      setProfile(data)
+      setProfileLoading(false)
+    }
+    fetchProfile()
+  }, [user])
+
+  async function handleSaveProfile(formData) {
+    const { error } = await supabase
+      .from('profiles')
+      .update(formData)
+      .eq('id', user.id)
+    if (!error) {
+      setProfile(prev => ({ ...prev, ...formData }))
+    }
+    setEditMode(false)
+  }
+
   const tabs = [
     { key: 'profile', label: '👤 プロフィール' },
     { key: 'pets', label: '🐾 ペット' },
     { key: 'plan', label: '💳 プラン' },
   ]
+
+  if (profileLoading) {
+    return (
+      <div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <p style={{ color: '#9ca3af' }}>読み込み中...</p>
+      </div>
+    )
+  }
+
+  const displayName = profile?.name || user?.email || ''
+  const displayEmail = user?.email || ''
+  const displayTel = profile?.tel || ''
+  const displayAddress = profile?.address || ''
+  const displayPlan = profile?.plan || 'free'
+  const displayPlanPurchasedAt = profile?.plan_purchased_at || ''
 
   return (
     <div className="page">
@@ -46,9 +83,9 @@ export default function MyPage() {
           fontSize: '2.6rem', margin: '0 auto 12px',
           border: '2.5px solid rgba(255,255,255,0.45)',
         }}>🧑</div>
-        <h2 style={{ fontWeight: 800, fontSize: '1.15rem', marginBottom: 4 }}>{PROFILE.name}</h2>
-        <p style={{ opacity: 0.85, fontSize: '0.85rem', marginBottom: 10 }}>{PROFILE.email}</p>
-        {PROFILE.plan === 'bought' && (
+        <h2 style={{ fontWeight: 800, fontSize: '1.15rem', marginBottom: 4 }}>{displayName}</h2>
+        <p style={{ opacity: 0.85, fontSize: '0.85rem', marginBottom: 10 }}>{displayEmail}</p>
+        {displayPlan === 'bought' && (
           <span style={{ background: '#f4a261', padding: '4px 14px', borderRadius: 50, fontSize: '0.78rem', fontWeight: 700 }}>
             ⭐ 買い切りプラン
           </span>
@@ -73,10 +110,20 @@ export default function MyPage() {
         {/* ── プロフィールタブ ── */}
         {activeTab === 'profile' && (
           <>
-            <div className="card">
+            <div className="card" data-profile-form>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                 <h3 style={{ fontWeight: 700, fontSize: '0.95rem' }}>基本情報</h3>
-                <button onClick={() => setEditMode(v => !v)} style={{
+                <button onClick={() => {
+                  if (editMode) {
+                    const form = document.querySelector('[data-profile-form]')
+                    const inputs = form.querySelectorAll('input[name]')
+                    const formData = {}
+                    inputs.forEach(input => { formData[input.name] = input.value })
+                    handleSaveProfile(formData)
+                  } else {
+                    setEditMode(true)
+                  }
+                }} style={{
                   background: editMode ? '#2a9d8f' : '#e8f6f5',
                   color: editMode ? '#fff' : '#2a9d8f',
                   border: 'none', borderRadius: 50, padding: '5px 14px',
@@ -85,21 +132,24 @@ export default function MyPage() {
                   {editMode ? '保存' : '編集'}
                 </button>
               </div>
-              {[
-                { label: 'お名前', value: PROFILE.name, type: 'text' },
-                { label: 'メール', value: PROFILE.email, type: 'email' },
-                { label: '電話番号', value: PROFILE.tel, type: 'tel' },
-                { label: '住所', value: PROFILE.address, type: 'text' },
-              ].map((item, i, arr) => (
-                <div key={item.label} style={{ padding: '10px 0', borderBottom: i < arr.length - 1 ? '1px solid #e5e7eb' : 'none' }}>
-                  <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: 4 }}>{item.label}</div>
-                  {editMode ? (
-                    <input className="form-input" type={item.type} defaultValue={item.value} style={{ padding: '8px 12px', fontSize: '0.9rem' }} />
-                  ) : (
-                    <div style={{ fontWeight: 600, fontSize: '0.92rem', color: '#264653' }}>{item.value}</div>
-                  )}
-                </div>
-              ))}
+              {(() => {
+                const fields = [
+                  { label: 'お名前', key: 'name', value: displayName, type: 'text' },
+                  { label: 'メール', key: 'email', value: displayEmail, type: 'email', disabled: true },
+                  { label: '電話番号', key: 'tel', value: displayTel, type: 'tel' },
+                  { label: '住所', key: 'address', value: displayAddress, type: 'text' },
+                ]
+                return fields.map((item, i, arr) => (
+                  <div key={item.label} style={{ padding: '10px 0', borderBottom: i < arr.length - 1 ? '1px solid #e5e7eb' : 'none' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: 4 }}>{item.label}</div>
+                    {editMode && !item.disabled ? (
+                      <input className="form-input" type={item.type} name={item.key} defaultValue={item.value} style={{ padding: '8px 12px', fontSize: '0.9rem' }} />
+                    ) : (
+                      <div style={{ fontWeight: 600, fontSize: '0.92rem', color: '#264653' }}>{item.value || '未設定'}</div>
+                    )}
+                  </div>
+                ))
+              })()}
             </div>
 
             {/* Notification settings */}
@@ -149,7 +199,7 @@ export default function MyPage() {
                   <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🚪</div>
                   <h3 style={{ fontWeight: 800, marginBottom: 8 }}>ログアウトしますか？</h3>
                   <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: 20 }}>ログアウトすると再度ログインが必要です。</p>
-                  <button className="btn-primary" style={{ background: '#ef4444', marginBottom: 10 }} onClick={() => navigate('/auth')}>ログアウト</button>
+                  <button className="btn-primary" style={{ background: '#ef4444', marginBottom: 10 }} onClick={async () => { await signOut(); navigate('/auth') }}>ログアウト</button>
                   <button className="btn-secondary" onClick={() => setShowLogoutDialog(false)}>キャンセル</button>
                 </div>
               </div>
@@ -252,7 +302,7 @@ export default function MyPage() {
         {/* ── プランタブ ── */}
         {activeTab === 'plan' && (
           <>
-            {PROFILE.plan === 'bought' ? (
+            {displayPlan === 'bought' ? (
               <>
                 {/* Active plan card */}
                 <div style={{ background: 'linear-gradient(135deg, #2a9d8f 0%, #21867a 100%)', borderRadius: 20, padding: '24px 20px', color: '#fff', marginBottom: 16, position: 'relative', overflow: 'hidden' }}>
@@ -265,7 +315,7 @@ export default function MyPage() {
                     <span style={{ background: '#f4a261', padding: '4px 12px', borderRadius: 50, fontSize: '0.75rem', fontWeight: 800 }}>有効</span>
                   </div>
                   <div style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: 4 }}>¥14,800</div>
-                  <div style={{ opacity: 0.8, fontSize: '0.82rem' }}>購入日：{PROFILE.planPurchasedAt}</div>
+                  <div style={{ opacity: 0.8, fontSize: '0.82rem' }}>購入日：{displayPlanPurchasedAt}</div>
                   <div style={{ marginTop: 16, background: 'rgba(255,255,255,0.15)', borderRadius: 10, padding: '10px 14px', fontSize: '0.82rem' }}>
                     💡 システム利用料が無料
                   </div>
