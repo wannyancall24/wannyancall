@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import CardRegistration from '../components/CardRegistration'
 import { getStoredCard, clearCard, getBrandLabel } from '../lib/stripeCard'
@@ -16,6 +16,7 @@ export default function MyPage() {
   const [profile, setProfile] = useState(null)
   const [profileLoading, setProfileLoading] = useState(false)
   const [profileFetched, setProfileFetched] = useState(false)
+  const isLoggingOut = useRef(false)
   const [activeTab, setActiveTab] = useState('profile')
   const [editMode, setEditMode] = useState(false)
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
@@ -72,8 +73,13 @@ export default function MyPage() {
     )
   }
 
+  useEffect(() => {
+    if (!authLoading && !user && !isLoggingOut.current) {
+      navigate('/auth', { replace: true })
+    }
+  }, [authLoading, user, navigate])
+
   if (!user) {
-    navigate('/auth')
     return null
   }
 
@@ -219,7 +225,7 @@ export default function MyPage() {
                   <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🚪</div>
                   <h3 style={{ fontWeight: 800, marginBottom: 8 }}>ログアウトしますか？</h3>
                   <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: 20 }}>ログアウトすると再度ログインが必要です。</p>
-                  <button className="btn-primary" style={{ background: '#ef4444', marginBottom: 10 }} onClick={async () => { await signOut(); navigate('/auth') }}>ログアウト</button>
+                  <button className="btn-primary" style={{ background: '#ef4444', marginBottom: 10 }} onClick={async () => { isLoggingOut.current = true; await signOut(); navigate('/auth', { replace: true }) }}>ログアウト</button>
                   <button className="btn-secondary" onClick={() => setShowLogoutDialog(false)}>キャンセル</button>
                 </div>
               </div>
