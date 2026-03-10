@@ -10,11 +10,12 @@ export function AuthProvider({ children }) {
 
   async function fetchRole(userId) {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', userId)
         .single()
+      if (error) return null
       return data?.role ?? null
     } catch {
       return null
@@ -34,6 +35,8 @@ export function AuthProvider({ children }) {
         const r = await fetchRole(session.user.id)
         setRole(r)
       }
+      setLoading(false)
+    }).catch(() => {
       setLoading(false)
     })
 
