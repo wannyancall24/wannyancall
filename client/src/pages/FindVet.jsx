@@ -101,7 +101,7 @@ export default function FindVet() {
         ) : (
           filtered.map(v => (
             <div key={v.id} className="card" style={{ cursor: 'pointer', marginBottom: 14 }}
-              onClick={() => navigate(`/予約/${v.id}`)}>
+              onClick={() => navigate(`/booking/${v.id}`)}>
               <div style={{ display: 'flex', gap: 14 }}>
                 <div style={{ position: 'relative', flexShrink: 0 }}>
                   <div style={{
@@ -145,7 +145,7 @@ export default function FindVet() {
                     <span style={{ fontSize: '0.75rem', color: '#6b7280', flex: 1 }}>⚡ 平均{v.avg_response_min}分以内</span>
                     <button className="btn-primary"
                       style={{ padding: '9px 20px', fontSize: '0.85rem', width: 'auto' }}
-                      onClick={e => { e.stopPropagation(); navigate(`/予約/${v.id}`) }}>
+                      onClick={e => { e.stopPropagation(); navigate(`/booking/${v.id}`) }}>
                       相談する
                     </button>
                   </div>
