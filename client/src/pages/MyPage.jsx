@@ -12,9 +12,9 @@ const PETS = [
 
 export default function MyPage() {
   const navigate = useNavigate()
-  const { user, signOut } = useAuth()
+  const { user, loading: authLoading, signOut } = useAuth()
   const [profile, setProfile] = useState(null)
-  const [profileLoading, setProfileLoading] = useState(true)
+  const [profileLoading, setProfileLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('profile')
   const [editMode, setEditMode] = useState(false)
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
@@ -57,7 +57,7 @@ export default function MyPage() {
     { key: 'plan', label: '💳 プラン' },
   ]
 
-  if (profileLoading) {
+  if (authLoading || profileLoading) {
     return (
       <div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
         <p style={{ color: '#9ca3af' }}>読み込み中...</p>
