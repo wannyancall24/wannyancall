@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import CardRegistration from '../components/CardRegistration'
 import { getStoredCard, clearCard, getBrandLabel } from '../lib/stripeCard'
@@ -16,7 +16,6 @@ export default function MyPage() {
   const [profile, setProfile] = useState(null)
   const [profileLoading, setProfileLoading] = useState(false)
   const [profileFetched, setProfileFetched] = useState(false)
-  const isLoggingOut = useRef(false)
   const [activeTab, setActiveTab] = useState('profile')
   const [editMode, setEditMode] = useState(false)
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
@@ -29,8 +28,10 @@ export default function MyPage() {
 
   const userId = user?.id
 
+  // プロフィール取得 — userIdが確定したら1回だけ実行
   useEffect(() => {
     if (authLoading || !userId || profileFetched) return
+    let cancelled = false
     async function fetchProfile() {
       setProfileLoading(true)
       const { data, error } = await supabase
@@ -38,26 +39,42 @@ export default function MyPage() {
         .select('*')
         .eq('id', userId)
         .single()
+      if (cancelled) return
       if (error) {
-        console.error('Failed to fetch profile:', error)
+        console.error('Failed to fetch profile:', error.message)
       }
       setProfile(data)
       setProfileLoading(false)
       setProfileFetched(true)
     }
     fetchProfile()
+    return () => { cancelled = true }
   }, [authLoading, userId, profileFetched])
 
-  async function handleSaveProfile(formData) {
+  // 未ログインリダイレクト
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate('/auth', { replace: true })
+    }
+  }, [authLoading, user, navigate])
+
+  const handleSaveProfile = useCallback(async (formData) => {
+    if (!userId) return
     const { error } = await supabase
       .from('profiles')
       .update(formData)
-      .eq('id', user.id)
+      .eq('id', userId)
     if (!error) {
       setProfile(prev => ({ ...prev, ...formData }))
     }
     setEditMode(false)
-  }
+  }, [userId])
+
+  const handleLogout = useCallback(async () => {
+    setShowLogoutDialog(false)
+    await signOut()
+    navigate('/auth', { replace: true })
+  }, [signOut, navigate])
 
   const tabs = [
     { key: 'profile', label: '👤 プロフィール' },
@@ -65,7 +82,8 @@ export default function MyPage() {
     { key: 'plan', label: '💳 プラン' },
   ]
 
-  if (authLoading) {
+  // ローディング表示
+  if (authLoading || (!profileFetched && userId)) {
     return (
       <div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
         <p style={{ color: '#9ca3af' }}>読み込み中...</p>
@@ -73,22 +91,9 @@ export default function MyPage() {
     )
   }
 
-  useEffect(() => {
-    if (!authLoading && !user && !isLoggingOut.current) {
-      navigate('/auth', { replace: true })
-    }
-  }, [authLoading, user, navigate])
-
+  // 未ログイン（useEffectでリダイレクト中）
   if (!user) {
     return null
-  }
-
-  if (profileLoading) {
-    return (
-      <div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-        <p style={{ color: '#9ca3af' }}>読み込み中...</p>
-      </div>
-    )
   }
 
   const displayName = profile?.name || user?.email || ''
@@ -225,7 +230,7 @@ export default function MyPage() {
                   <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🚪</div>
                   <h3 style={{ fontWeight: 800, marginBottom: 8 }}>ログアウトしますか？</h3>
                   <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: 20 }}>ログアウトすると再度ログインが必要です。</p>
-                  <button className="btn-primary" style={{ background: '#ef4444', marginBottom: 10 }} onClick={async () => { isLoggingOut.current = true; await signOut(); navigate('/auth', { replace: true }) }}>ログアウト</button>
+                  <button className="btn-primary" style={{ background: '#ef4444', marginBottom: 10 }} onClick={handleLogout}>ログアウト</button>
                   <button className="btn-secondary" onClick={() => setShowLogoutDialog(false)}>キャンセル</button>
                 </div>
               </div>

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { supabase, supabaseReady } from '../lib/supabase'
 
 const AuthContext = createContext(null)
@@ -8,57 +8,76 @@ export function AuthProvider({ children }) {
   const [role, setRole] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  async function fetchRole(userId) {
+  const fetchRole = useCallback(async (userId) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', userId)
         .single()
-      if (error) return null
+      if (error) {
+        console.warn('fetchRole error:', error.message)
+        return null
+      }
       return data?.role ?? null
     } catch {
       return null
     }
-  }
+  }, [])
 
   useEffect(() => {
-    // Supabaseが未設定なら即座にloading解除（アプリは未ログイン状態で動作）
     if (!supabaseReady) {
       setLoading(false)
       return
     }
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        const r = await fetchRole(session.user.id)
-        setRole(r)
+    let isMounted = true
+
+    async function init() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!isMounted) return
+        const currentUser = session?.user ?? null
+        setUser(currentUser)
+        if (currentUser) {
+          const r = await fetchRole(currentUser.id)
+          if (isMounted) setRole(r)
+        }
+      } catch (e) {
+        console.error('Auth init error:', e)
+      } finally {
+        if (isMounted) setLoading(false)
       }
-      setLoading(false)
-    }).catch(() => {
-      setLoading(false)
-    })
+    }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        const r = await fetchRole(session.user.id)
-        setRole(r)
-      } else {
-        setRole(null)
+    init()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (!isMounted) return
+        const currentUser = session?.user ?? null
+        setUser(currentUser)
+        if (currentUser) {
+          const r = await fetchRole(currentUser.id)
+          if (isMounted) setRole(r)
+        } else {
+          setRole(null)
+        }
       }
-    })
+    )
 
-    return () => subscription.unsubscribe()
-  }, [])
+    return () => {
+      isMounted = false
+      subscription.unsubscribe()
+    }
+  }, [fetchRole])
 
-  async function signOut() {
+  const signOut = useCallback(async () => {
     if (!supabaseReady) return
     await supabase.auth.signOut()
     setUser(null)
     setRole(null)
-  }
+  }, [])
 
   return (
     <AuthContext.Provider value={{ user, role, loading, signOut }}>

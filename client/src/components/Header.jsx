@@ -20,7 +20,7 @@ export default function Header({ userMode, setUserMode }) {
 
   async function handleSignOut() {
     await signOut()
-    navigate('/')
+    navigate('/auth', { replace: true })
   }
 
   return (

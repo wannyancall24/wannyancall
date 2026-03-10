@@ -32,12 +32,12 @@ export default function Auth() {
   const navigate = useNavigate()
   const { user, role } = useAuth()
 
-  // ログイン済みなら自動リダイレクト
+  // ログイン済みなら自動リダイレクト（roleがnullでもリダイレクト）
   useEffect(() => {
-    if (user && role) {
-      navigate('/')
+    if (user) {
+      navigate('/', { replace: true })
     }
-  }, [user, role, navigate])
+  }, [user, navigate])
 
   async function handleLogin(e) {
     e.preventDefault()
