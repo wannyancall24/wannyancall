@@ -31,6 +31,14 @@ export default function FindVet() {
       return
     }
     fetchVets()
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && !loading) {
+        fetchVets()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [])
 
   async function fetchVets() {
@@ -38,7 +46,7 @@ export default function FindVet() {
     setFetchError(null)
     try {
       const timeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('タイムアウト: 5秒以内に応答がありませんでした')), 5000)
+        setTimeout(() => reject(new Error('タイムアウト: 30秒以内に応答がありませんでした')), 30000)
       )
       const query = supabase.from('vets').select('*')
       const { data, error } = await Promise.race([query, timeout])
