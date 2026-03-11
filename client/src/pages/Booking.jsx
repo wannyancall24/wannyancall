@@ -47,15 +47,16 @@ function formatElapsed(sec) {
   return `${m}:${s}`
 }
 
-function calcTotal({ animalType, duration, hour }) {
+function calcTotal({ animalType, duration, hour, nominated = false, hasPlan = false }) {
   const base = animalType === 'exotic' ? 4500 : 3000
   const extPer5 = animalType === 'exotic' ? 1500 : 1000
   const ext = Math.max(0, Math.floor((duration - 15) / 5)) * extPer5
-  const systemFee = 800
+  const systemFee = hasPlan ? 0 : 800
+  const nominationFee = nominated ? 500 : 0
   const timeFee = hour >= 22 || hour < 8 ? 1500 : hour >= 20 ? 1000 : 0
   const timeLabel = hour >= 22 || hour < 8 ? '深夜加算' : hour >= 20 ? '夜間加算' : null
-  const total = base + ext + systemFee + timeFee
-  return { base, ext, systemFee, timeFee, timeLabel, total }
+  const total = base + ext + systemFee + nominationFee + timeFee
+  return { base, ext, systemFee, nominationFee, timeFee, timeLabel, total }
 }
 
 export default function Booking() {
@@ -78,17 +79,28 @@ export default function Booking() {
   const [pet, setPet] = useState('ポチ（トイプードル）')
   const [animalType, setAnimalType] = useState('dogcat')
   const [duration, setDuration] = useState(15)
+  const [nominated, setNominated] = useState(false)
   const [symptoms, setSymptoms] = useState('')
   const [symptomsError, setSymptomsError] = useState('')
   const [apiError, setApiError] = useState('')
   const [apiLoading, setApiLoading] = useState(false)
   const [paymentIntentId, setPaymentIntentId] = useState('')
   const [elapsedSec, setElapsedSec] = useState(0)
+  const [hasPlan, setHasPlan] = useState(false)
   const timerRef = useRef(null)
+
+  // ユーザーのプラン情報を取得
+  useEffect(() => {
+    if (!supabaseReady || !user) return
+    supabase.from('profiles').select('plan').eq('id', user.id).single()
+      .then(({ data }) => {
+        if (data?.plan === 'bought') setHasPlan(true)
+      })
+  }, [user])
 
   const card = getStoredCard()
   const nowHour = new Date().getHours()
-  const { base, ext, systemFee, timeFee, timeLabel, total } = calcTotal({ animalType, duration, hour: nowHour })
+  const { base, ext, systemFee, nominationFee, timeFee, timeLabel, total } = calcTotal({ animalType, duration, hour: nowHour, nominated, hasPlan })
 
   // 相談中タイマー
   useEffect(() => {
@@ -118,14 +130,18 @@ export default function Booking() {
       // consultationレコード作成
       let consultationId = null
       if (supabaseReady) {
+        const vetReward = Math.round((base + ext + timeFee) * 0.5) + nominationFee
         const { data: consData } = await supabase.from('consultations').insert({
           user_id: user.id,
           vet_id: parseInt(id),
           status: 'in_progress',
           symptoms,
           pet,
-          base_amount: total,
+          animal_type: animalType,
+          nomination_fee: nominationFee,
+          base_amount: base + ext,
           total_amount: total,
+          vet_reward_amount: vetReward,
           started_at: new Date().toISOString(),
         }).select('id').single()
         consultationId = consData?.id
@@ -245,6 +261,27 @@ export default function Booking() {
             </div>
           </div>
 
+          {/* 指名オプション */}
+          <div className="form-group">
+            <label className="form-label">⭐ 獣医師を指名する</label>
+            <button
+              onClick={() => setNominated(n => !n)}
+              style={{
+                width: '100%', padding: '12px 16px', borderRadius: 12, cursor: 'pointer',
+                fontWeight: 700, fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                border: nominated ? '2px solid #2a9d8f' : '2px solid #e5e7eb',
+                background: nominated ? '#e8f6f5' : '#fff',
+                color: nominated ? '#2a9d8f' : '#6b7280',
+              }}
+            >
+              <span>{nominated ? '✅ 指名あり' : '指名なし（指名しない）'}</span>
+              <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>+¥500</span>
+            </button>
+            <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: 4 }}>
+              指名料は全額獣医師に支払われます
+            </div>
+          </div>
+
           {/* 症状 */}
           <div className="form-group">
             <label className="form-label">💬 相談内容・症状 <span style={{ color: '#e05555' }}>*</span></label>
@@ -264,7 +301,8 @@ export default function Booking() {
             <h3 style={{ fontWeight: 700, marginBottom: 10, fontSize: '0.9rem', color: '#264653' }}>💴 料金内訳（予定）</h3>
             {[
               { label: `相談料（${duration}分）`, amount: base + ext },
-              { label: 'システム利用料', amount: systemFee },
+              systemFee > 0 && { label: 'システム利用料', amount: systemFee },
+              nominationFee > 0 && { label: '指名料', amount: nominationFee },
               timeFee > 0 && { label: timeLabel, amount: timeFee },
             ].filter(Boolean).map((r, i, arr) => (
               <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: i < arr.length - 1 ? '1px solid #c8ece9' : 'none', fontSize: '0.88rem' }}>
@@ -272,6 +310,11 @@ export default function Booking() {
                 <span style={{ fontWeight: 600 }}>¥{r.amount.toLocaleString()}</span>
               </div>
             ))}
+            {hasPlan && (
+              <div style={{ fontSize: '0.75rem', color: '#2a9d8f', fontWeight: 600, padding: '4px 0 0' }}>
+                買い切りプラン適用中 — システム利用料無料
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 0', fontWeight: 800, fontSize: '1.05rem', borderTop: '2px solid #2a9d8f', marginTop: 8 }}>
               <span style={{ color: '#264653' }}>合計（税込）</span>
               <span style={{ color: '#2a9d8f' }}>¥{total.toLocaleString()}</span>
@@ -314,6 +357,7 @@ export default function Booking() {
               { label: 'ペット', value: pet },
               { label: '動物種別', value: animalType === 'dogcat' ? '犬・猫' : '小動物・鳥・その他' },
               { label: '相談時間', value: `${duration}分` },
+              { label: '指名', value: nominated ? '指名あり（+¥500）' : 'なし' },
               { label: '相談内容', value: symptoms },
             ].map((r, i, arr) => (
               <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: i < arr.length - 1 ? '1px solid #e5e7eb' : 'none', fontSize: '0.9rem' }}>
@@ -328,7 +372,8 @@ export default function Booking() {
             <h3 style={{ fontWeight: 700, marginBottom: 12, fontSize: '0.95rem' }}>💴 料金内訳</h3>
             {[
               { label: `相談料（${duration}分）`, amount: base + ext },
-              { label: 'システム利用料', amount: systemFee },
+              systemFee > 0 && { label: 'システム利用料', amount: systemFee },
+              nominationFee > 0 && { label: '指名料', amount: nominationFee },
               timeFee > 0 && { label: `${timeLabel}（現在の時間帯）`, amount: timeFee },
             ].filter(Boolean).map((r, i, arr) => (
               <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < arr.length - 1 ? '1px solid #e5e7eb' : 'none', fontSize: '0.9rem' }}>

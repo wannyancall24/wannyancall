@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
+import { supabase, supabaseReady } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 import ReportModal from '../components/ReportModal'
 import BlockModal from '../components/BlockModal'
 
@@ -11,56 +13,47 @@ const SHIFTS = [
 const STORAGE_KEY = 'vetApplication'
 const REQUESTS_KEY = 'exoticRequests'
 
-const MONTHLY_REWARDS = [
-  {
-    month: '2025年3月', key: '2025-03', status: '振込予定（3/22）',
-    rows: [
-      { category: '犬・猫 基本相談（15分）', count: 14, unitPrice: 3000, vetUnit: 1500, total: 42000, vetTotal: 21000 },
-      { category: '犬・猫 夜間加算', count: 6, unitPrice: 1000, vetUnit: 500, total: 6000, vetTotal: 3000 },
-      { category: '犬・猫 深夜加算', count: 3, unitPrice: 1500, vetUnit: 750, total: 4500, vetTotal: 2250 },
-      { category: '小動物・エキゾチック 基本相談（15分）', count: 5, unitPrice: 4500, vetUnit: 2250, total: 22500, vetTotal: 11250 },
-      { category: '指名料', count: 4, unitPrice: 500, vetUnit: 500, total: 2000, vetTotal: 2000 },
-    ],
-    fees: [
-      { label: '決済手数料（3.6%）', amount: -1368 },
-      { label: '月額手数料', amount: -220 },
-      { label: '振込手数料', amount: -250 },
-      { label: 'プラットフォーム手数料（0.25%）', amount: -99 },
-    ],
-  },
-  {
-    month: '2025年2月', key: '2025-02', status: '振込済み（3/7）',
-    rows: [
-      { category: '犬・猫 基本相談（15分）', count: 18, unitPrice: 3000, vetUnit: 1500, total: 54000, vetTotal: 27000 },
-      { category: '犬・猫 夜間加算', count: 8, unitPrice: 1000, vetUnit: 500, total: 8000, vetTotal: 4000 },
-      { category: '犬・猫 深夜加算', count: 4, unitPrice: 1500, vetUnit: 750, total: 6000, vetTotal: 3000 },
-      { category: '小動物・エキゾチック 基本相談（15分）', count: 6, unitPrice: 4500, vetUnit: 2250, total: 27000, vetTotal: 13500 },
-      { category: '指名料', count: 5, unitPrice: 500, vetUnit: 500, total: 2500, vetTotal: 2500 },
-    ],
-    fees: [
-      { label: '決済手数料（3.6%）', amount: -1818 },
-      { label: '月額手数料', amount: -220 },
-      { label: '振込手数料', amount: -250 },
-      { label: 'プラットフォーム手数料（0.25%）', amount: -125 },
-    ],
-  },
-  {
-    month: '2025年1月', key: '2025-01', status: '振込済み（2/7）',
-    rows: [
-      { category: '犬・猫 基本相談（15分）', count: 20, unitPrice: 3000, vetUnit: 1500, total: 60000, vetTotal: 30000 },
-      { category: '犬・猫 夜間加算', count: 9, unitPrice: 1000, vetUnit: 500, total: 9000, vetTotal: 4500 },
-      { category: '犬・猫 深夜加算', count: 5, unitPrice: 1500, vetUnit: 750, total: 7500, vetTotal: 3750 },
-      { category: '小動物・エキゾチック 基本相談（15分）', count: 8, unitPrice: 4500, vetUnit: 2250, total: 36000, vetTotal: 18000 },
-      { category: '指名料', count: 6, unitPrice: 500, vetUnit: 500, total: 3000, vetTotal: 3000 },
-    ],
-    fees: [
-      { label: '決済手数料（3.6%）', amount: -2142 },
-      { label: '月額手数料', amount: -220 },
-      { label: '振込手数料', amount: -250 },
-      { label: 'プラットフォーム手数料（0.25%）', amount: -148 },
-    ],
-  },
-]
+// 月次報酬データをconsultationsテーブルから集計する関数
+function buildMonthlyReward(consultations, yearMonth) {
+  const year = parseInt(yearMonth.slice(0, 4))
+  const month = parseInt(yearMonth.slice(5, 7))
+  const monthLabel = `${year}年${month}月`
+
+  // 集計
+  let dogcatCount = 0, dogcatBase = 0
+  let exoticCount = 0, exoticBase = 0
+  let nominationCount = 0, nominationTotal = 0
+  let totalReward = 0
+
+  consultations.forEach(c => {
+    const reward = c.vet_reward_amount || 0
+    totalReward += reward
+    const nomFee = c.nomination_fee || 0
+    if (nomFee > 0) { nominationCount++; nominationTotal += nomFee }
+    if (c.animal_type === 'exotic') { exoticCount++; exoticBase += (c.base_amount || 0) }
+    else { dogcatCount++; dogcatBase += (c.base_amount || 0) }
+  })
+
+  const rows = []
+  if (dogcatCount > 0) rows.push({ category: '犬・猫 相談', count: dogcatCount, unitPrice: '-', vetUnit: '-', total: dogcatBase, vetTotal: Math.round(dogcatBase * 0.5) })
+  if (exoticCount > 0) rows.push({ category: '小動物・エキゾチック 相談', count: exoticCount, unitPrice: '-', vetUnit: '-', total: exoticBase, vetTotal: Math.round(exoticBase * 0.5) })
+  if (nominationCount > 0) rows.push({ category: '指名料', count: nominationCount, unitPrice: 500, vetUnit: 500, total: nominationTotal, vetTotal: nominationTotal })
+
+  const grossVet = rows.reduce((s, r) => s + r.vetTotal, 0)
+  const fees = [
+    { label: '決済手数料（3.6%）', amount: -Math.round(grossVet * 0.036) },
+    { label: '月額手数料', amount: -220 },
+    { label: '振込手数料', amount: -250 },
+    { label: 'プラットフォーム手数料（0.25%）', amount: -Math.round(grossVet * 0.0025) },
+  ]
+
+  // 今月かどうかで振込ステータス判定
+  const now = new Date()
+  const isCurrentMonth = now.getFullYear() === year && now.getMonth() + 1 === month
+  const status = isCurrentMonth ? '集計中' : '振込済み'
+
+  return { month: monthLabel, key: yearMonth, status, rows, fees }
+}
 
 function loadApplication() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) } catch { return null }
@@ -124,12 +117,15 @@ function RewardTable({ title, emoji, items, note }) {
 }
 
 export default function VetDashboard() {
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [application, setApplication] = useState(loadApplication)
   const [requests, setRequests] = useState(loadRequests)
   const [reportTarget, setReportTarget] = useState(null)
   const [blockTarget, setBlockTarget] = useState(null)
   const [selectedMonthIdx, setSelectedMonthIdx] = useState(0)
+  const [monthlyRewards, setMonthlyRewards] = useState([])
+  const [rewardLoading, setRewardLoading] = useState(true)
 
   const [form, setForm] = useState({
     name: '', email: '', tel: '', licenseNo: '',
@@ -154,6 +150,40 @@ export default function VetDashboard() {
       window.removeEventListener('exoticRequestUpdated', handler)
     }
   }, [])
+
+  // 月次報酬データをDBから取得
+  useEffect(() => {
+    if (!supabaseReady || !user) { setRewardLoading(false); return }
+    async function fetchRewards() {
+      // auth_idでvet_idを取得
+      const { data: vetData } = await supabase.from('vets').select('id').eq('auth_id', user.id).single()
+      if (!vetData) { setRewardLoading(false); return }
+      // 完了済みの相談を取得（直近6ヶ月分）
+      const sixMonthsAgo = new Date()
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+      const { data: consults } = await supabase
+        .from('consultations')
+        .select('id, base_amount, total_amount, vet_reward_amount, nomination_fee, animal_type, created_at, status')
+        .eq('vet_id', vetData.id)
+        .in('status', ['completed', 'in_progress'])
+        .gte('created_at', sixMonthsAgo.toISOString())
+        .order('created_at', { ascending: false })
+      if (!consults || consults.length === 0) { setRewardLoading(false); return }
+      // 月ごとにグルーピング
+      const grouped = {}
+      consults.forEach(c => {
+        const key = c.created_at.slice(0, 7) // "2025-03"
+        if (!grouped[key]) grouped[key] = []
+        grouped[key].push(c)
+      })
+      // 月ごとに集計
+      const months = Object.keys(grouped).sort().reverse()
+      const rewards = months.map(key => buildMonthlyReward(grouped[key], key))
+      setMonthlyRewards(rewards)
+      setRewardLoading(false)
+    }
+    fetchRewards()
+  }, [user])
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -439,7 +469,15 @@ export default function VetDashboard() {
   )
 
   const renderRewardDetail = () => {
-    const data = MONTHLY_REWARDS[selectedMonthIdx]
+    if (rewardLoading) return <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9ca3af' }}>読み込み中...</div>
+    if (monthlyRewards.length === 0) return (
+      <div style={{ textAlign: 'center', padding: '60px 20px', color: '#9ca3af' }}>
+        <div style={{ fontSize: '3rem', marginBottom: 12 }}>📊</div>
+        <p style={{ fontWeight: 600 }}>報酬明細はまだありません</p>
+        <p style={{ fontSize: '0.82rem', marginTop: 6 }}>相談が完了すると報酬明細がここに表示されます</p>
+      </div>
+    )
+    const data = monthlyRewards[selectedMonthIdx]
     const consultTotal = data.rows.reduce((s, r) => s + r.count, 0)
     const grossVet = data.rows.reduce((s, r) => s + r.vetTotal, 0)
     const totalFees = data.fees.reduce((s, f) => s + f.amount, 0)
@@ -471,9 +509,9 @@ export default function VetDashboard() {
         {/* Month Selector */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <button
-            onClick={() => setSelectedMonthIdx(i => Math.min(i + 1, MONTHLY_REWARDS.length - 1))}
-            disabled={selectedMonthIdx >= MONTHLY_REWARDS.length - 1}
-            style={{ background: '#e8f6f5', border: 'none', borderRadius: 8, padding: '8px 14px', fontWeight: 700, fontSize: '1rem', cursor: selectedMonthIdx >= MONTHLY_REWARDS.length - 1 ? 'default' : 'pointer', color: selectedMonthIdx >= MONTHLY_REWARDS.length - 1 ? '#d1d5db' : '#2a9d8f' }}
+            onClick={() => setSelectedMonthIdx(i => Math.min(i + 1, monthlyRewards.length - 1))}
+            disabled={selectedMonthIdx >= monthlyRewards.length - 1}
+            style={{ background: '#e8f6f5', border: 'none', borderRadius: 8, padding: '8px 14px', fontWeight: 700, fontSize: '1rem', cursor: selectedMonthIdx >= monthlyRewards.length - 1 ? 'default' : 'pointer', color: selectedMonthIdx >= monthlyRewards.length - 1 ? '#d1d5db' : '#2a9d8f' }}
           >←</button>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontWeight: 800, fontSize: '1rem', color: '#264653' }}>{data.month}</div>
@@ -687,10 +725,15 @@ export default function VetDashboard() {
         <p style={{ fontSize: '0.85rem', opacity: 0.8, marginBottom: 4 }}>獣医師向けダッシュボード</p>
         <h1 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: 16 }}>WanNyanCall24 で<br />副業・在宅相談を始めよう</h1>
         <div style={{ display: 'flex', gap: 12 }}>
-          {[
-            { label: '今月の相談数', value: application?.status === 'approved' ? '24件' : '−' },
-            { label: '今月の報酬', value: application?.status === 'approved' ? '¥26,400' : '−' },
-          ].map(s => (
+          {(() => {
+            const currentMonth = monthlyRewards.length > 0 ? monthlyRewards[0] : null
+            const consultCount = currentMonth ? currentMonth.rows.reduce((s, r) => s + r.count, 0) : 0
+            const grossVet = currentMonth ? currentMonth.rows.reduce((s, r) => s + r.vetTotal, 0) : 0
+            return [
+              { label: '今月の相談数', value: application?.status === 'approved' && currentMonth ? `${consultCount}件` : '−' },
+              { label: '今月の報酬', value: application?.status === 'approved' && currentMonth ? `¥${grossVet.toLocaleString()}` : '−' },
+            ]
+          })().map(s => (
             <div key={s.label} style={{ flex: 1, background: 'rgba(255,255,255,0.15)', borderRadius: 10, padding: '12px', textAlign: 'center' }}>
               <div style={{ fontSize: '1.3rem', fontWeight: 800 }}>{s.value}</div>
               <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>{s.label}</div>
