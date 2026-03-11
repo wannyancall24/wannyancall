@@ -45,13 +45,12 @@ export default function Auth() {
     setError('')
     setLoading(true)
     const { error } = await supabase.auth.signInWithPassword({ email, password })
+    setLoading(false)
     if (error) {
-      setLoading(false)
       setError('メールアドレスまたはパスワードが正しくありません')
       return
     }
-    setToast('ログインしました')
-    setTimeout(() => navigate('/'), 800)
+    // onAuthStateChange → user更新 → useEffectでリダイレクト
   }
 
   async function handleRegister(e) {

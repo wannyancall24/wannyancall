@@ -13,7 +13,7 @@ const PETS = [
 
 export default function MyPage() {
   const navigate = useNavigate()
-  const { user, loading: authLoading, authError, signOut } = useAuth()
+  const { user, loading: authLoading, signOut } = useAuth()
   const [profile, setProfile] = useState(null)
   const [profileLoading, setProfileLoading] = useState(false)
   const [profileFetched, setProfileFetched] = useState(false)
@@ -100,8 +100,8 @@ export default function MyPage() {
   ]
 
   // エラー表示
-  if (authError || fetchError) {
-    const errMsg = [authError, fetchError].filter(Boolean).join('\n')
+  if (fetchError) {
+    const errMsg = fetchError
     return (
       <div className="page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', padding: 24 }}>
         <div style={{ fontSize: '3rem', marginBottom: 12 }}>⚠️</div>

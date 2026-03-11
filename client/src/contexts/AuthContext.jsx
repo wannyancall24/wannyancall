@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { supabase, supabaseReady } from '../lib/supabase'
 
 const AuthContext = createContext(null)
@@ -7,10 +7,6 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [role, setRole] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [authError, setAuthError] = useState(null)
-  const initialized = useRef(false)
-  const currentUserId = useRef(null)
-  const roleFetched = useRef(false)
 
   useEffect(() => {
     if (!supabaseReady) {
@@ -18,111 +14,77 @@ export function AuthProvider({ children }) {
       return
     }
 
-    // StrictMode対策: 二重実行を防止
-    if (initialized.current) return
-    initialized.current = true
+    let mounted = true
 
-    async function fetchRole(userId) {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', userId)
-          .single()
-        if (error) return null
-        return data?.role ?? null
-      } catch {
-        return null
-      }
-    }
-
-    // セッションを処理する共通関数（一括state更新）
-    async function processSession(sessionUser) {
-      const u = sessionUser ?? null
-      const newId = u?.id ?? null
-
-      // 同じユーザーで既にrole取得済みなら何もしない
-      if (newId && newId === currentUserId.current && roleFetched.current) {
-        return
-      }
-
-      currentUserId.current = newId
-
-      if (u) {
-        const r = await fetchRole(u.id)
-        roleFetched.current = true
-        // 一括更新: user + role + loading を同じタイミングで
-        setUser(u)
-        setRole(r)
-      } else {
-        roleFetched.current = false
-        setUser(null)
-        setRole(null)
-      }
-      setLoading(false)
-    }
-
-    // 初回セッション取得（5秒タイムアウト付き）
-    let timedOut = false
+    // 3秒で必ずloading解除（何が起きても固まらない）
     const timeout = setTimeout(() => {
-      timedOut = true
-      setLoading(false)
-    }, 5000)
+      if (mounted) setLoading(false)
+    }, 3000)
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      clearTimeout(timeout)
-      await processSession(session?.user)
-    }).catch((e) => {
-      clearTimeout(timeout)
-      setAuthError(`Auth init: ${e.message}`)
-      setLoading(false)
-    })
-
-    // ログイン/ログアウトイベントのみ監視
+    // onAuthStateChange一本で管理（getSession不要）
+    // INITIAL_SESSION: 起動時に必ず1回発火（セッション有無に関わらず）
+    // SIGNED_IN: ログイン時
+    // SIGNED_OUT: ログアウト時
+    // TOKEN_REFRESHED: トークン更新（無視でOK）
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        // INITIAL_SESSION は getSession で処理済み
-        if (event === 'INITIAL_SESSION') return
+      (event, session) => {
+        if (!mounted) return
 
-        const u = session?.user ?? null
-        const newId = u?.id ?? null
-
-        // 同じユーザーのイベントは全て無視（TOKEN_REFRESHED, SIGNED_IN等）
-        if (newId && newId === currentUserId.current && roleFetched.current) return
-
-        // ユーザーが変わった場合のみ処理（ログイン/ログアウト）
-        await processSession(u)
+        if (event === 'INITIAL_SESSION') {
+          const u = session?.user ?? null
+          setUser(u)
+          clearTimeout(timeout)
+          setLoading(false)
+          if (u) {
+            fetchRole(u.id).then(r => { if (mounted) setRole(r) })
+          }
+        } else if (event === 'SIGNED_IN') {
+          const u = session?.user ?? null
+          setUser(u)
+          if (u) {
+            fetchRole(u.id).then(r => { if (mounted) setRole(r) })
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null)
+          setRole(null)
+        }
       }
     )
 
     return () => {
+      mounted = false
       clearTimeout(timeout)
       subscription.unsubscribe()
     }
   }, [])
 
   const signOut = useCallback(async () => {
-    currentUserId.current = null
-    roleFetched.current = false
     setUser(null)
     setRole(null)
     if (supabaseReady) {
-      try {
-        await Promise.race([
-          supabase.auth.signOut(),
-          new Promise(resolve => setTimeout(resolve, 3000)),
-        ])
-      } catch {
-        // サインアウトAPIが失敗してもローカルは既にクリア済み
-      }
+      try { await supabase.auth.signOut() } catch {}
     }
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, role, loading, authError, signOut }}>
+    <AuthContext.Provider value={{ user, role, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   )
+}
+
+async function fetchRole(userId) {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single()
+    if (error) return null
+    return data?.role ?? null
+  } catch {
+    return null
+  }
 }
 
 export function useAuth() {
