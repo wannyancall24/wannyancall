@@ -15,6 +15,7 @@ import Legal from './pages/Legal'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
 import Admin from './pages/Admin'
+import ChatRoom from './pages/ChatRoom'
 
 // 獣医師専用ルートのガード
 function VetRoute({ children }) {
@@ -75,6 +76,7 @@ function AppInner() {
         <Route path="/find" element={<FindVet />} />
         <Route path="/vet/:id" element={<VetProfile />} />
         <Route path="/booking/:id" element={<Booking />} />
+        <Route path="/chat/:roomId" element={<AuthRoute><ChatRoom /></AuthRoute>} />
         <Route path="/history" element={<History />} />
         <Route path="/mypage" element={<MyPage />} />
         <Route path="/auth" element={<Auth />} />

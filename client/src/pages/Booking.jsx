@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getStoredCard, getBrandLabel } from '../lib/stripeCard'
+import { supabase, supabaseReady } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 
 const VETS = {
   1: { name: '田中 健一', specialty: '内科・皮膚科', photo: '👨‍⚕️', rating: 4.9 },
@@ -59,7 +61,18 @@ function calcTotal({ animalType, duration, hour }) {
 export default function Booking() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const vet = VETS[id] || VETS[1]
+  const { user } = useAuth()
+  const fallbackVet = VETS[id] || VETS[1]
+  const [vet, setVet] = useState(fallbackVet)
+
+  // Supabaseから獣医師データを取得
+  useEffect(() => {
+    if (!supabaseReady) return
+    supabase.from('vets').select('*').eq('id', id).single()
+      .then(({ data }) => {
+        if (data) setVet({ name: data.name, specialty: data.specialty, photo: data.photo || '👨‍⚕️', rating: data.rating })
+      })
+  }, [id])
 
   const [step, setStep] = useState(1)
   const [pet, setPet] = useState('ポチ（トイプードル）')
@@ -87,9 +100,11 @@ export default function Booking() {
 
   async function handleStartConsultation() {
     if (!card) { setApiError('カードが登録されていません'); return }
+    if (!user) { setApiError('ログインが必要です'); return }
     setApiLoading(true)
     setApiError('')
     try {
+      // Stripe仮押さえ
       const res = await fetch('/api/stripe/create-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -99,6 +114,38 @@ export default function Booking() {
       if (data.error) throw new Error(data.error)
       if (data.status !== 'requires_capture') throw new Error(`予期しないステータス: ${data.status}`)
       setPaymentIntentId(data.paymentIntentId)
+
+      // consultationレコード作成
+      let consultationId = null
+      if (supabaseReady) {
+        const { data: consData } = await supabase.from('consultations').insert({
+          user_id: user.id,
+          vet_id: parseInt(id),
+          status: 'in_progress',
+          symptoms,
+          pet,
+          base_amount: total,
+          total_amount: total,
+          started_at: new Date().toISOString(),
+        }).select('id').single()
+        consultationId = consData?.id
+      }
+
+      // チャットルーム作成
+      if (supabaseReady) {
+        const { data: roomData, error: roomError } = await supabase.from('chat_rooms').insert({
+          consultation_id: consultationId,
+          user_id: user.id,
+          vet_id: parseInt(id),
+          payment_intent_id: data.paymentIntentId,
+          total_amount: total,
+        }).select('id').single()
+        if (roomError) throw new Error(`チャットルーム作成失敗: ${roomError.message}`)
+        // チャット画面に遷移
+        navigate(`/chat/${roomData.id}`)
+        return
+      }
+
       setStep(3)
     } catch (err) {
       setApiError(err.message)
