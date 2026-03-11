@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase, supabaseReady } from '../lib/supabase'
+import { supabase, supabaseReady, supabaseDebugInfo } from '../lib/supabase'
 
 const SPECIALTIES = ['すべて', '内科', '外科', '眼科', '神経科', '小動物']
 
@@ -111,7 +111,11 @@ export default function FindVet() {
             <div style={{ fontSize: '3rem', marginBottom: 12 }}>⚠️</div>
             <p style={{ fontWeight: 600, color: '#dc2626', marginBottom: 8 }}>データ取得エラー</p>
             <p style={{ fontSize: '0.82rem', color: '#6b7280', lineHeight: 1.6, wordBreak: 'break-all' }}>{fetchError}</p>
-            <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: 8 }}>supabaseReady: {String(supabaseReady)}</p>
+            <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: 8, lineHeight: 1.8 }}>
+              supabaseReady: {String(supabaseReady)}<br/>
+              URL設定: {String(supabaseDebugInfo.urlSet)} ({supabaseDebugInfo.urlPrefix})<br/>
+              Key設定: {String(supabaseDebugInfo.keySet)} (長さ: {supabaseDebugInfo.keyLength})
+            </p>
             <button onClick={fetchVets} className="btn-secondary" style={{ marginTop: 12, width: 'auto', padding: '8px 20px' }}>再試行</button>
           </div>
         ) : loading ? (
