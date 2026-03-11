@@ -15,9 +15,33 @@ export const supabaseDebugInfo = {
   isConfigured,
 }
 
+// スマホブラウザ対応: fetch にタイムアウト付きAbortController を使用
+function createFetchWithTimeout(timeoutMs = 15000) {
+  return (url, options = {}) => {
+    const controller = new AbortController()
+    const id = setTimeout(() => controller.abort(), timeoutMs)
+    return fetch(url, {
+      ...options,
+      signal: controller.signal,
+    }).finally(() => clearTimeout(id))
+  }
+}
+
 // 環境変数が未設定の場合でもクラッシュしないようダミークライアントを作成
 export const supabase = isConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        fetch: createFetchWithTimeout(15000),
+      },
+      realtime: {
+        params: { eventsPerSecond: 1 },
+      },
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+      },
+    })
   : createClient('https://placeholder.supabase.co', 'placeholder-key')
 
 export const supabaseReady = isConfigured

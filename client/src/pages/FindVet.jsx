@@ -41,24 +41,27 @@ export default function FindVet() {
     return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [])
 
-  async function fetchVets() {
+  async function fetchVets(retryCount = 0) {
     setLoading(true)
     setFetchError(null)
     try {
-      const timeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('タイムアウト: 30秒以内に応答がありませんでした')), 30000)
-      )
-      const query = supabase.from('vets').select('*')
-      const { data, error } = await Promise.race([query, timeout])
+      const { data, error } = await supabase.from('vets').select('*')
       if (error) {
-        setFetchError(`vets: ${error.message} (code: ${error.code})`)
-      } else {
-        setVets(data || [])
+        throw new Error(`${error.message} (code: ${error.code})`)
       }
+      setVets(data || [])
+      setLoading(false)
     } catch (e) {
-      setFetchError(`vets: ${e.message}`)
+      // 最大2回リトライ（初回 + 2回 = 計3回試行）
+      if (retryCount < 2) {
+        const delay = (retryCount + 1) * 2000 // 2秒, 4秒
+        console.warn(`vets fetch failed (attempt ${retryCount + 1}), retrying in ${delay}ms...`, e.message)
+        setTimeout(() => fetchVets(retryCount + 1), delay)
+      } else {
+        setFetchError(`vets: ${e.message}`)
+        setLoading(false)
+      }
     }
-    setLoading(false)
   }
 
   const filtered = vets
