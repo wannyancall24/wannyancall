@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase, supabaseReady } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import VideoCall from '../components/VideoCall'
 
 export default function ChatRoom() {
   const { roomId } = useParams()
@@ -17,6 +18,7 @@ export default function ChatRoom() {
   const [toast, setToast] = useState(null)
   const [elapsedSec, setElapsedSec] = useState(0)
   const [uploading, setUploading] = useState(false)
+  const [showVideo, setShowVideo] = useState(false)
   const messagesEndRef = useRef(null)
   const fileInputRef = useRef(null)
   const timerRef = useRef(null)
@@ -251,6 +253,18 @@ export default function ChatRoom() {
           <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{room.vets?.name || '獣医師'} 獣医師</div>
           <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>{room.vets?.specialty}</div>
         </div>
+        {!isCompleted && (
+          <button onClick={() => setShowVideo(true)} style={{
+            background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff',
+            borderRadius: '50%', width: 38, height: 38, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="23 7 16 12 23 17 23 7" />
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+            </svg>
+          </button>
+        )}
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
           {isCompleted ? (
             <span style={{ fontSize: '0.78rem', fontWeight: 700, background: 'rgba(255,255,255,0.2)', padding: '4px 10px', borderRadius: 50 }}>完了</span>
@@ -440,6 +454,15 @@ export default function ChatRoom() {
         }}>
           {toast.isError ? '⚠️' : '✓'} {toast.msg}
         </div>
+      )}
+
+      {/* ビデオ通話 */}
+      {showVideo && !isCompleted && (
+        <VideoCall
+          roomId={roomId}
+          userId={user.id}
+          onClose={() => setShowVideo(false)}
+        />
       )}
 
       <style>{`

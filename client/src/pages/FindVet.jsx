@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase, supabaseReady, supabaseDebugInfo } from '../lib/supabase'
+import { getCached, setCache } from '../lib/cache'
 
 const SPECIALTIES = ['すべて', '内科', '外科', '眼科', '神経科', '小動物']
 
@@ -31,6 +32,12 @@ export default function FindVet() {
       setLoading(false)
       return
     }
+    // キャッシュがあれば即表示
+    const cached = getCached('vets')
+    if (cached) {
+      setVets(cached)
+      setLoading(false)
+    }
     fetchVets()
 
     const handleVisibility = () => {
@@ -53,6 +60,7 @@ export default function FindVet() {
         throw new Error(`${error.message} (code: ${error.code})`)
       }
       setVets(data || [])
+      setCache('vets', data || [], 120000) // 2分キャッシュ
       setLoading(false)
       fetchingRef.current = false
     } catch (e) {

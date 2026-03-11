@@ -4,6 +4,7 @@ import CardRegistration from '../components/CardRegistration'
 import { getStoredCard, clearCard, getBrandLabel } from '../lib/stripeCard'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
+import { getCached, setCache } from '../lib/cache'
 
 const PETS = [
   { id: 1, name: 'ポチ', species: '犬', breed: 'トイプードル', age: 3, weight: '3.2kg', icon: '🐕', birthday: '2021-04-10', note: 'アレルギー：なし' },
@@ -32,9 +33,16 @@ export default function MyPage() {
   // プロフィール取得 — userIdが確定したら1回だけ実行
   useEffect(() => {
     if (authLoading || !userId || profileFetched) return
+    // キャッシュがあれば即表示
+    const cached = getCached(`profile-${userId}`)
+    if (cached) {
+      setProfile(cached)
+      setProfileLoading(false)
+      setProfileFetched(true)
+    }
     let cancelled = false
     async function fetchProfile() {
-      setProfileLoading(true)
+      if (!cached) setProfileLoading(true)
       setFetchError(null)
       try {
         const { data, error } = await supabase
@@ -47,6 +55,7 @@ export default function MyPage() {
           setFetchError(`profiles: ${error.message} (code: ${error.code})`)
         }
         setProfile(data)
+        if (data) setCache(`profile-${userId}`, data, 120000)
       } catch (e) {
         if (!cancelled) setFetchError(`profiles: ${e.message}`)
       }
