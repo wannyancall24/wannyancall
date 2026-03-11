@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase, supabaseReady, supabaseDebugInfo, queryWithRetry } from '../lib/supabase'
-import { useAuth } from '../contexts/AuthContext'
 import { getCached, setCache } from '../lib/cache'
 
 const SPECIALTIES = ['すべて', '内科', '外科', '眼科', '神経科', '小動物']
+
+// モジュールレベルキャッシュ: コンポーネント再マウントでもデータ保持
+let moduleVetsCache = null
 
 const FilterChip = ({ active, onClick, children }) => (
   <button onClick={onClick} style={{
@@ -16,45 +18,22 @@ const FilterChip = ({ active, onClick, children }) => (
   }}>{children}</button>
 )
 
-// === DEBUG: 画面表示デバッグログ ===
-const debugStartTime = Date.now()
-function ts() { return ((Date.now() - debugStartTime) / 1000).toFixed(2) + 's' }
-
 export default function FindVet() {
   const navigate = useNavigate()
-  const { user, loading: authLoading, authError } = useAuth()
-  const [vets, setVets] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [vets, setVets] = useState(() => moduleVetsCache || getCached('vets') || [])
+  const [loading, setLoading] = useState(() => !moduleVetsCache && !getCached('vets'))
   const [fetchError, setFetchError] = useState(null)
   const [animal, setAnimal] = useState('全て')
   const [specialty, setSpecialty] = useState('すべて')
   const [nightOnly, setNightOnly] = useState(false)
   const [sortBy, setSortBy] = useState('評価順')
   const fetchingRef = useRef(false)
-  const [debugLog, setDebugLog] = useState([`[${ts()}] component mounted`])
-  const [debugTick, setDebugTick] = useState(0)
-  const addLog = (msg) => setDebugLog(prev => [...prev, `[${ts()}] ${msg}`])
-
-  // AuthContextログを反映するため定期更新
-  useEffect(() => {
-    const iv = setInterval(() => setDebugTick(t => t + 1), 1000)
-    return () => clearInterval(iv)
-  }, [])
 
   useEffect(() => {
-    addLog(`useEffect: supabaseReady=${supabaseReady}, authLoading=${authLoading}, user=${user?.id?.slice(0,8) || 'null'}`)
     if (!supabaseReady) {
       setFetchError('Supabase未設定: 環境変数を確認してください')
       setLoading(false)
-      addLog('supabaseReady=false, abort')
       return
-    }
-    // キャッシュがあれば即表示
-    const cached = getCached('vets')
-    if (cached) {
-      setVets(cached)
-      setLoading(false)
-      addLog(`cache hit: ${cached.length} vets`)
     }
     fetchVets()
 
@@ -67,49 +46,30 @@ export default function FindVet() {
     return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [])
 
-  // Auth状態変化をログ
-  useEffect(() => {
-    addLog(`auth changed: authLoading=${authLoading}, user=${user?.id?.slice(0,8) || 'null'}, authError=${authError || 'none'}`)
-  }, [authLoading, user, authError])
-
   async function fetchVets() {
-    if (fetchingRef.current) {
-      addLog('fetchVets: skipped (already fetching)')
-      return
-    }
+    if (fetchingRef.current) return
     fetchingRef.current = true
-    if (!getCached('vets')) setLoading(true)
+    // 既にデータがあればローディング表示しない
+    if (vets.length === 0 && !moduleVetsCache) setLoading(true)
     setFetchError(null)
-    addLog('fetchVets: START (queryWithRetry)')
-
-    // まずSupabaseに直接fetchしてみてタイミングを計測
-    try {
-      addLog('fetchVets: calling supabase.from(vets).select()...')
-      const t0 = Date.now()
-      const { data, error } = await queryWithRetry(
-        () => supabase
-          .from('vets')
-          .select('id,name,specialty,photo,rating,review_count,available_animals,night_ok,is_online,avg_response_min'),
-        { retries: 2, timeoutMs: 15000 }
-      )
-      const elapsed = Date.now() - t0
-      if (error) {
-        addLog(`fetchVets: ERROR after ${elapsed}ms: ${error}`)
-        setFetchError(`vets: ${error}`)
-      } else {
-        addLog(`fetchVets: OK after ${elapsed}ms, rows=${data?.length ?? 0}`)
-        setVets(data || [])
-        if (data && data.length > 0) {
-          setCache('vets', data, 120000)
-        }
+    const { data, error } = await queryWithRetry(
+      () => supabase
+        .from('vets')
+        .select('id,name,specialty,photo,rating,review_count,available_animals,night_ok,is_online,avg_response_min'),
+      { retries: 2, timeoutMs: 15000 }
+    )
+    if (error) {
+      setFetchError(`vets: ${error}`)
+    } else {
+      const result = data || []
+      setVets(result)
+      if (result.length > 0) {
+        moduleVetsCache = result
+        setCache('vets', result, 120000)
       }
-    } catch (e) {
-      addLog(`fetchVets: EXCEPTION: ${e.message}`)
-      setFetchError(`vets exception: ${e.message}`)
     }
     setLoading(false)
     fetchingRef.current = false
-    addLog('fetchVets: END')
   }
 
   const filtered = vets
@@ -128,30 +88,6 @@ export default function FindVet() {
 
   return (
     <div className="page">
-      {/* === DEBUG PANEL === */}
-      <div style={{
-        background: '#1a1a2e', color: '#0f0', padding: '10px 12px', fontSize: '0.68rem',
-        fontFamily: 'monospace', lineHeight: 1.6, maxHeight: 220, overflowY: 'auto',
-        borderBottom: '2px solid #f00', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
-      }}>
-        <div style={{ color: '#ff0', fontWeight: 700, marginBottom: 4 }}>DEBUG (FindVet)</div>
-        <div style={{ color: '#aaa' }}>
-          supabaseReady: {String(supabaseReady)} | URL: {supabaseDebugInfo.urlPrefix} | Key: {supabaseDebugInfo.keyLength}chars{'\n'}
-          authLoading: {String(authLoading)} | user: {user?.id?.slice(0,8) || 'null'} | authError: {authError || 'none'}{'\n'}
-          loading: {String(loading)} | fetchError: {fetchError || 'none'} | vets: {vets.length}{'\n'}
-          UA: {navigator.userAgent.slice(0, 80)}
-        </div>
-        <div style={{ borderTop: '1px solid #333', marginTop: 4, paddingTop: 4, color: '#0cf' }}>
-          <div style={{ color: '#ff0', fontSize: '0.65rem' }}>--- AuthContext ---</div>
-          {(window.__authDebugLog || []).map((line, i) => <div key={'a'+i}>{line}</div>)}
-        </div>
-        <div style={{ borderTop: '1px solid #333', marginTop: 4, paddingTop: 4, color: '#0f0' }}>
-          <div style={{ color: '#ff0', fontSize: '0.65rem' }}>--- FindVet ---</div>
-          {debugLog.map((line, i) => <div key={i}>{line}</div>)}
-        </div>
-      </div>
-      {/* === END DEBUG === */}
-
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', position: 'sticky', top: 0, zIndex: 10 }}>
         <div style={{ padding: '12px 16px 8px', display: 'flex', gap: 8, overflowX: 'auto' }}>
           {[

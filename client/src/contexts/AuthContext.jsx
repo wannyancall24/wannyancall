@@ -3,14 +3,6 @@ import { supabase, supabaseReady } from '../lib/supabase'
 
 const AuthContext = createContext(null)
 
-// === DEBUG: AuthContext デバッグログ（画面表示用） ===
-const authDebugLog = []
-const authDebugStartTime = Date.now()
-function authTs() { return ((Date.now() - authDebugStartTime) / 1000).toFixed(2) + 's' }
-function authLog(msg) { authDebugLog.push(`[${authTs()}] ${msg}`) }
-// グローバルに公開して FindVet から参照可能に
-window.__authDebugLog = authDebugLog
-
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [role, setRole] = useState(null)
@@ -18,64 +10,70 @@ export function AuthProvider({ children }) {
   const [authError, setAuthError] = useState(null)
   const initialized = useRef(false)
   const currentUserId = useRef(null)
+  const roleFetched = useRef(false)
 
   useEffect(() => {
-    authLog(`useEffect: supabaseReady=${supabaseReady}`)
-
     if (!supabaseReady) {
-      authLog('supabaseReady=false, setLoading(false)')
       setLoading(false)
       return
     }
 
     // StrictMode対策: 二重実行を防止
-    if (initialized.current) {
-      authLog('already initialized, skip')
-      return
-    }
+    if (initialized.current) return
     initialized.current = true
 
     async function fetchRole(userId) {
-      authLog(`fetchRole: start for ${userId.slice(0,8)}`)
       try {
         const { data, error } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', userId)
           .single()
-        authLog(`fetchRole: result=${data?.role ?? 'null'}, error=${error?.message || 'none'}`)
         if (error) return null
         return data?.role ?? null
-      } catch (e) {
-        authLog(`fetchRole: exception=${e.message}`)
+      } catch {
         return null
       }
+    }
+
+    // セッションを処理する共通関数（一括state更新）
+    async function processSession(sessionUser) {
+      const u = sessionUser ?? null
+      const newId = u?.id ?? null
+
+      // 同じユーザーで既にrole取得済みなら何もしない
+      if (newId && newId === currentUserId.current && roleFetched.current) {
+        return
+      }
+
+      currentUserId.current = newId
+
+      if (u) {
+        const r = await fetchRole(u.id)
+        roleFetched.current = true
+        // 一括更新: user + role + loading を同じタイミングで
+        setUser(u)
+        setRole(r)
+      } else {
+        roleFetched.current = false
+        setUser(null)
+        setRole(null)
+      }
+      setLoading(false)
     }
 
     // 初回セッション取得（5秒タイムアウト付き）
     let timedOut = false
     const timeout = setTimeout(() => {
       timedOut = true
-      authLog('getSession: TIMED OUT after 5s')
       setLoading(false)
     }, 5000)
 
-    authLog('getSession: calling...')
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       clearTimeout(timeout)
-      const u = session?.user ?? null
-      authLog(`getSession: resolved, user=${u?.id?.slice(0,8) || 'null'}, timedOut=${timedOut}`)
-      currentUserId.current = u?.id ?? null
-      setUser(u)
-      if (u) {
-        const r = await fetchRole(u.id)
-        setRole(r)
-      }
-      authLog('getSession: setLoading(false)')
-      setLoading(false)
+      await processSession(session?.user)
     }).catch((e) => {
       clearTimeout(timeout)
-      authLog(`getSession: CATCH error=${e.message}`)
       setAuthError(`Auth init: ${e.message}`)
       setLoading(false)
     })
@@ -83,24 +81,17 @@ export function AuthProvider({ children }) {
     // ログイン/ログアウトイベントのみ監視
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        // INITIAL_SESSION は init() で処理済みなのでスキップ
+        // INITIAL_SESSION は getSession で処理済み
         if (event === 'INITIAL_SESSION') return
 
         const u = session?.user ?? null
         const newId = u?.id ?? null
 
-        // 同じユーザーのTOKEN_REFRESHEDは無視（不要な再レンダリング防止）
-        if (event === 'TOKEN_REFRESHED' && newId === currentUserId.current) return
+        // 同じユーザーのイベントは全て無視（TOKEN_REFRESHED, SIGNED_IN等）
+        if (newId && newId === currentUserId.current && roleFetched.current) return
 
-        currentUserId.current = newId
-        setUser(u)
-
-        if (u) {
-          const r = await fetchRole(u.id)
-          setRole(r)
-        } else {
-          setRole(null)
-        }
+        // ユーザーが変わった場合のみ処理（ログイン/ログアウト）
+        await processSession(u)
       }
     )
 
@@ -111,11 +102,10 @@ export function AuthProvider({ children }) {
   }, [])
 
   const signOut = useCallback(async () => {
-    // 先にローカル状態をクリア（画面遷移を即時反映）
     currentUserId.current = null
+    roleFetched.current = false
     setUser(null)
     setRole(null)
-    // Supabaseのサインアウトは非同期で実行（ハングしても影響なし）
     if (supabaseReady) {
       try {
         await Promise.race([
