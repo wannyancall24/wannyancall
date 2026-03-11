@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import CardRegistration from '../components/CardRegistration'
 import { getStoredCard, clearCard, getBrandLabel } from '../lib/stripeCard'
 import { useAuth } from '../contexts/AuthContext'
-import { supabase } from '../lib/supabase'
+import { supabase, queryWithRetry } from '../lib/supabase'
 import { getCached, setCache } from '../lib/cache'
 
 const PETS = [
@@ -44,20 +44,20 @@ export default function MyPage() {
     async function fetchProfile() {
       if (!cached) setProfileLoading(true)
       setFetchError(null)
-      try {
-        const { data, error } = await supabase
+      const { data, error } = await queryWithRetry(
+        () => supabase
           .from('profiles')
           .select('id,name,role,email,tel,address,plan,created_at')
           .eq('id', userId)
-          .single()
-        if (cancelled) return
-        if (error) {
-          setFetchError(`profiles: ${error.message} (code: ${error.code})`)
-        }
+          .single(),
+        { retries: 2, timeoutMs: 15000 }
+      )
+      if (cancelled) return
+      if (error) {
+        setFetchError(`profiles: ${error}`)
+      } else {
         setProfile(data)
         if (data) setCache(`profile-${userId}`, data, 120000)
-      } catch (e) {
-        if (!cancelled) setFetchError(`profiles: ${e.message}`)
       }
       if (!cancelled) {
         setProfileLoading(false)

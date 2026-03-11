@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { supabase, supabaseReady } from '../lib/supabase'
+import { supabase, supabaseReady, queryWithRetry } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import VideoCall from '../components/VideoCall'
 
@@ -30,11 +30,14 @@ export default function ChatRoom() {
       return
     }
     async function fetchRoom() {
-      const { data, error } = await supabase
-        .from('chat_rooms')
-        .select('id,consultation_id,user_id,vet_id,status,payment_intent_id,total_amount,created_at,completed_at,vets(id,name,specialty,photo,auth_id)')
-        .eq('id', roomId)
-        .single()
+      const { data, error } = await queryWithRetry(
+        () => supabase
+          .from('chat_rooms')
+          .select('id,consultation_id,user_id,vet_id,status,payment_intent_id,total_amount,created_at,completed_at,vets(id,name,specialty,photo,auth_id)')
+          .eq('id', roomId)
+          .single(),
+        { retries: 2, timeoutMs: 15000 }
+      )
       if (error) {
         setError('チャットルームが見つかりません')
         setLoading(false)
@@ -51,11 +54,14 @@ export default function ChatRoom() {
     if (!supabaseReady || !roomId) return
 
     async function fetchMessages() {
-      const { data } = await supabase
-        .from('messages')
-        .select('id,sender_id,sender_role,content,image_url,video_url,created_at')
-        .eq('room_id', roomId)
-        .order('created_at', { ascending: true })
+      const { data } = await queryWithRetry(
+        () => supabase
+          .from('messages')
+          .select('id,sender_id,sender_role,content,image_url,video_url,created_at')
+          .eq('room_id', roomId)
+          .order('created_at', { ascending: true }),
+        { retries: 2, timeoutMs: 15000 }
+      )
       setMessages(data || [])
     }
     fetchMessages()

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase, supabaseReady, supabaseDebugInfo } from '../lib/supabase'
+import { supabase, supabaseReady, supabaseDebugInfo, queryWithRetry } from '../lib/supabase'
 import { getCached, setCache } from '../lib/cache'
 
 const SPECIALTIES = ['すべて', '内科', '外科', '眼科', '神経科', '小動物']
@@ -49,39 +49,27 @@ export default function FindVet() {
     return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [])
 
-  async function fetchVets(retryCount = 0) {
+  async function fetchVets() {
     if (fetchingRef.current) return
     fetchingRef.current = true
     if (!getCached('vets')) setLoading(true)
     setFetchError(null)
-    try {
-      console.log(`[FindVet] fetching vets (attempt ${retryCount + 1})...`)
-      const { data, error, status, statusText } = await supabase
+    const { data, error } = await queryWithRetry(
+      () => supabase
         .from('vets')
-        .select('id,name,specialty,photo,rating,review_count,available_animals,night_ok,is_online,avg_response_min')
-      console.log(`[FindVet] response: status=${status}, rows=${data?.length ?? 0}, error=${error?.message || 'none'}`)
-      if (error) {
-        throw new Error(`${error.message} (code: ${error.code})`)
-      }
+        .select('id,name,specialty,photo,rating,review_count,available_animals,night_ok,is_online,avg_response_min'),
+      { retries: 2, timeoutMs: 15000 }
+    )
+    if (error) {
+      setFetchError(`vets: ${error}`)
+    } else {
       setVets(data || [])
       if (data && data.length > 0) {
         setCache('vets', data, 120000)
       }
-      setLoading(false)
-      fetchingRef.current = false
-    } catch (e) {
-      console.error(`[FindVet] fetch error (attempt ${retryCount + 1}):`, e.message)
-      // 最大2回リトライ（初回 + 2回 = 計3回試行）
-      if (retryCount < 2) {
-        const delay = (retryCount + 1) * 2000
-        fetchingRef.current = false
-        setTimeout(() => fetchVets(retryCount + 1), delay)
-      } else {
-        setFetchError(`vets: ${e.message}`)
-        setLoading(false)
-        fetchingRef.current = false
-      }
     }
+    setLoading(false)
+    fetchingRef.current = false
   }
 
   const filtered = vets

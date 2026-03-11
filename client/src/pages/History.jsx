@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import ReportModal from '../components/ReportModal'
 import BlockModal from '../components/BlockModal'
 import { useAuth } from '../contexts/AuthContext'
-import { supabase } from '../lib/supabase'
+import { supabase, queryWithRetry } from '../lib/supabase'
 import { getCached, setCache } from '../lib/cache'
 
 const STATUS_MAP = {
@@ -57,21 +57,20 @@ export default function History() {
     async function fetchHistory() {
       if (!cached) setLoading(true)
       setFetchError(null)
-      try {
-        const { data, error } = await supabase
+      const { data, error } = await queryWithRetry(
+        () => supabase
           .from('consultations')
           .select('id,vet_id,status,symptoms,pet,started_at,created_at,duration,total_amount,base_amount,vets(id,name,specialty,photo)')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
-          .limit(50)
-        if (error) {
-          setFetchError(`consultations: ${error.message} (code: ${error.code})`)
-        } else {
-          setHistory(data || [])
-          setCache(`history-${user.id}`, data || [], 60000)
-        }
-      } catch (e) {
-        setFetchError(`consultations: ${e.message}`)
+          .limit(50),
+        { retries: 2, timeoutMs: 15000 }
+      )
+      if (error) {
+        setFetchError(`consultations: ${error}`)
+      } else {
+        setHistory(data || [])
+        setCache(`history-${user.id}`, data || [], 60000)
       }
       setLoading(false)
     }

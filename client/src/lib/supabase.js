@@ -15,33 +15,9 @@ export const supabaseDebugInfo = {
   isConfigured,
 }
 
-// スマホブラウザ対応: データ取得のみタイムアウト付き（認証リクエストは除外）
-function createFetchWithTimeout(timeoutMs = 15000) {
-  return (url, options = {}) => {
-    // 認証エンドポイントはタイムアウトを適用しない（セッション保持に必要）
-    const isAuthRequest = typeof url === 'string' && url.includes('/auth/')
-    // 既にsignalが設定されている場合はそのまま使う（Supabase内部のAbortControllerと衝突防止）
-    if (isAuthRequest || options.signal) {
-      return fetch(url, options)
-    }
-    const controller = new AbortController()
-    const id = setTimeout(() => controller.abort(), timeoutMs)
-    return fetch(url, {
-      ...options,
-      signal: controller.signal,
-    }).finally(() => clearTimeout(id))
-  }
-}
-
-// 環境変数が未設定の場合でもクラッシュしないようダミークライアントを作成
+// シンプルなSupabaseクライアント（カスタムfetchなし — 全問題の根本原因だった）
 export const supabase = isConfigured
   ? createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        fetch: createFetchWithTimeout(15000),
-      },
-      realtime: {
-        params: { eventsPerSecond: 1 },
-      },
       auth: {
         storageKey: 'wannyancall-auth',
         storage: window.localStorage,
@@ -53,3 +29,25 @@ export const supabase = isConfigured
   : createClient('https://placeholder.supabase.co', 'placeholder-key')
 
 export const supabaseReady = isConfigured
+
+// 汎用クエリヘルパー: タイムアウト + リトライ付き
+export async function queryWithRetry(queryFn, { retries = 2, timeoutMs = 15000 } = {}) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const result = await Promise.race([
+        queryFn(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('タイムアウト')), timeoutMs)
+        ),
+      ])
+      if (result.error) throw new Error(`${result.error.message} (code: ${result.error.code})`)
+      return { data: result.data, error: null }
+    } catch (e) {
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, (attempt + 1) * 1500))
+        continue
+      }
+      return { data: null, error: e.message }
+    }
+  }
+}
