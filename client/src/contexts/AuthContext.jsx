@@ -11,13 +11,10 @@ export function AuthProvider({ children }) {
   const initialized = useRef(false)
   const currentUserId = useRef(null)
   const roleFetched = useRef(false)
-  const processingRef = useRef(false)
-  const loadingResolved = useRef(false)
 
   useEffect(() => {
     if (!supabaseReady) {
       setLoading(false)
-      loadingResolved.current = true
       return
     }
 
@@ -46,16 +43,8 @@ export function AuthProvider({ children }) {
 
       // 同じユーザーで既にrole取得済みなら何もしない
       if (newId && newId === currentUserId.current && roleFetched.current) {
-        if (!loadingResolved.current) {
-          loadingResolved.current = true
-          setLoading(false)
-        }
         return
       }
-
-      // 処理中ロック: 二重実行を防止（fetchRole中にonAuthStateChangeが発火するケース）
-      if (processingRef.current) return
-      processingRef.current = true
 
       currentUserId.current = newId
 
@@ -70,14 +59,13 @@ export function AuthProvider({ children }) {
         setUser(null)
         setRole(null)
       }
-      loadingResolved.current = true
       setLoading(false)
-      processingRef.current = false
     }
 
     // 初回セッション取得（5秒タイムアウト付き）
+    let timedOut = false
     const timeout = setTimeout(() => {
-      loadingResolved.current = true
+      timedOut = true
       setLoading(false)
     }, 5000)
 
@@ -87,7 +75,6 @@ export function AuthProvider({ children }) {
     }).catch((e) => {
       clearTimeout(timeout)
       setAuthError(`Auth init: ${e.message}`)
-      loadingResolved.current = true
       setLoading(false)
     })
 
@@ -97,13 +84,10 @@ export function AuthProvider({ children }) {
         // INITIAL_SESSION は getSession で処理済み
         if (event === 'INITIAL_SESSION') return
 
-        // TOKEN_REFRESHED は同一ユーザーなので常にスキップ
-        if (event === 'TOKEN_REFRESHED') return
-
         const u = session?.user ?? null
         const newId = u?.id ?? null
 
-        // 同じユーザーのイベントは全て無視（SIGNED_IN等）
+        // 同じユーザーのイベントは全て無視（TOKEN_REFRESHED, SIGNED_IN等）
         if (newId && newId === currentUserId.current && roleFetched.current) return
 
         // ユーザーが変わった場合のみ処理（ログイン/ログアウト）
