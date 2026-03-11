@@ -190,41 +190,64 @@ export default function VideoCall({ roomId, userId, onClose }) {
   // idle 状態: 開始ボタンのみ
   if (callState === 'idle') {
     return (
-      <div style={{ padding: '12px 0' }}>
-        {error && (
-          <div style={{ background: '#fee2e2', borderRadius: 10, padding: '10px 14px', marginBottom: 12, fontSize: '0.82rem', color: '#dc2626', fontWeight: 600 }}>
-            {error}
+      <div style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 10000, padding: 24,
+      }} onClick={e => { if (e.target === e.currentTarget) onClose?.() }}>
+        <div style={{
+          background: '#fff', borderRadius: 20, padding: '28px 24px',
+          width: '100%', maxWidth: 360,
+        }}>
+          <div style={{ textAlign: 'center', marginBottom: 20 }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>📹</div>
+            <h3 style={{ fontWeight: 800, fontSize: '1.05rem', color: '#264653', marginBottom: 4 }}>ビデオ通話</h3>
+            <p style={{ fontSize: '0.82rem', color: '#6b7280' }}>カメラとマイクへのアクセスを許可してください</p>
           </div>
-        )}
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            onClick={startCall}
-            style={{
-              flex: 1, background: '#2a9d8f', color: '#fff', border: 'none',
-              borderRadius: 50, padding: '12px', fontWeight: 700, fontSize: '0.88rem',
-              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="23 7 16 12 23 17 23 7" />
-              <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-            </svg>
-            ビデオ通話を開始
-          </button>
-          <button
-            onClick={answerCall}
-            style={{
-              flex: 1, background: '#e8f6f5', color: '#2a9d8f', border: '2px solid #2a9d8f',
-              borderRadius: 50, padding: '12px', fontWeight: 700, fontSize: '0.88rem',
-              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15.05 5A5 5 0 0 1 19 8.95M15.05 1A9 9 0 0 1 23 8.94" />
-              <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.86 19.86 0 0 1 1.05 3.18 2 2 0 0 1 3 1h3a2 2 0 0 1 2 1.72c.13.81.36 1.6.68 2.34a2 2 0 0 1-.45 2.11L7.09 8.31" />
-            </svg>
-            着信応答
-          </button>
+          {error && (
+            <div style={{ background: '#fee2e2', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.82rem', color: '#dc2626', fontWeight: 600 }}>
+              {error}
+            </div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <button
+              onClick={startCall}
+              style={{
+                width: '100%', background: '#2a9d8f', color: '#fff', border: 'none',
+                borderRadius: 50, padding: '14px', fontWeight: 700, fontSize: '0.92rem',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="23 7 16 12 23 17 23 7" />
+                <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+              </svg>
+              ビデオ通話を開始
+            </button>
+            <button
+              onClick={answerCall}
+              style={{
+                width: '100%', background: '#e8f6f5', color: '#2a9d8f', border: '2px solid #2a9d8f',
+                borderRadius: 50, padding: '14px', fontWeight: 700, fontSize: '0.92rem',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15.05 5A5 5 0 0 1 19 8.95M15.05 1A9 9 0 0 1 23 8.94" />
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.86 19.86 0 0 1 1.05 3.18 2 2 0 0 1 3 1h3a2 2 0 0 1 2 1.72c.13.81.36 1.6.68 2.34a2 2 0 0 1-.45 2.11L7.09 8.31" />
+              </svg>
+              着信応答
+            </button>
+            <button
+              onClick={onClose}
+              style={{
+                width: '100%', background: 'none', border: 'none', padding: '10px',
+                color: '#9ca3af', fontSize: '0.88rem', cursor: 'pointer',
+              }}
+            >
+              キャンセル
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -234,22 +257,29 @@ export default function VideoCall({ roomId, userId, onClose }) {
   if (callState === 'ended') {
     return (
       <div style={{
-        background: '#f9fafb', borderRadius: 14, padding: '24px 16px',
-        textAlign: 'center', marginBottom: 12,
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 10000, padding: 24,
       }}>
-        <p style={{ fontWeight: 700, color: '#6b7280', fontSize: '0.9rem', marginBottom: 12 }}>
-          通話が終了しました
-        </p>
-        <button
-          onClick={() => { setCallState('idle'); onClose?.() }}
-          style={{
-            background: '#2a9d8f', color: '#fff', border: 'none',
-            borderRadius: 50, padding: '10px 24px', fontWeight: 700,
-            fontSize: '0.85rem', cursor: 'pointer',
-          }}
-        >
-          閉じる
-        </button>
+        <div style={{
+          background: '#fff', borderRadius: 20, padding: '28px 24px',
+          width: '100%', maxWidth: 340, textAlign: 'center',
+        }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>📞</div>
+          <p style={{ fontWeight: 700, color: '#6b7280', fontSize: '0.95rem', marginBottom: 16 }}>
+            通話が終了しました
+          </p>
+          <button
+            onClick={() => { setCallState('idle'); onClose?.() }}
+            style={{
+              width: '100%', background: '#2a9d8f', color: '#fff', border: 'none',
+              borderRadius: 50, padding: '14px', fontWeight: 700,
+              fontSize: '0.9rem', cursor: 'pointer',
+            }}
+          >
+            閉じる
+          </button>
+        </div>
       </div>
     )
   }
