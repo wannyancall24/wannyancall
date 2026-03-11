@@ -26,11 +26,21 @@ CREATE TABLE IF NOT EXISTS public.messages (
   created_at timestamptz DEFAULT now()
 );
 
--- インデックス
+-- インデックス (chat)
 CREATE INDEX IF NOT EXISTS idx_messages_room_id ON public.messages(room_id);
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON public.messages(room_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_chat_rooms_user_id ON public.chat_rooms(user_id);
 CREATE INDEX IF NOT EXISTS idx_chat_rooms_vet_id ON public.chat_rooms(vet_id);
+CREATE INDEX IF NOT EXISTS idx_chat_rooms_status ON public.chat_rooms(status);
+CREATE INDEX IF NOT EXISTS idx_chat_rooms_consultation ON public.chat_rooms(consultation_id);
+
+-- インデックス (既存テーブル用 — 既に存在する場合はスキップされます)
+CREATE INDEX IF NOT EXISTS idx_consultations_user_id ON public.consultations(user_id);
+CREATE INDEX IF NOT EXISTS idx_consultations_vet_id ON public.consultations(vet_id);
+CREATE INDEX IF NOT EXISTS idx_consultations_created_at ON public.consultations(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_consultations_status ON public.consultations(status);
+CREATE INDEX IF NOT EXISTS idx_vets_is_online ON public.vets(is_online);
+CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);
 
 -- RLS有効化
 ALTER TABLE public.chat_rooms ENABLE ROW LEVEL SECURITY;

@@ -39,7 +39,7 @@ export default function MyPage() {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('*')
+          .select('id,name,role,email,tel,address,plan,created_at')
           .eq('id', userId)
           .single()
         if (cancelled) return

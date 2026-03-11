@@ -30,7 +30,7 @@ export default function ChatRoom() {
     async function fetchRoom() {
       const { data, error } = await supabase
         .from('chat_rooms')
-        .select('*, vets(id, name, specialty, photo, auth_id)')
+        .select('id,consultation_id,user_id,vet_id,status,payment_intent_id,total_amount,created_at,completed_at,vets(id,name,specialty,photo,auth_id)')
         .eq('id', roomId)
         .single()
       if (error) {
@@ -51,7 +51,7 @@ export default function ChatRoom() {
     async function fetchMessages() {
       const { data } = await supabase
         .from('messages')
-        .select('*')
+        .select('id,sender_id,sender_role,content,image_url,video_url,created_at')
         .eq('room_id', roomId)
         .order('created_at', { ascending: true })
       setMessages(data || [])

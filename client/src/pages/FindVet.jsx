@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase, supabaseReady, supabaseDebugInfo } from '../lib/supabase'
 
@@ -23,6 +23,7 @@ export default function FindVet() {
   const [specialty, setSpecialty] = useState('すべて')
   const [nightOnly, setNightOnly] = useState(false)
   const [sortBy, setSortBy] = useState('評価順')
+  const fetchingRef = useRef(false)
 
   useEffect(() => {
     if (!supabaseReady) {
@@ -33,7 +34,7 @@ export default function FindVet() {
     fetchVets()
 
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible' && !loading) {
+      if (document.visibilityState === 'visible' && !fetchingRef.current) {
         fetchVets()
       }
     }
@@ -42,24 +43,29 @@ export default function FindVet() {
   }, [])
 
   async function fetchVets(retryCount = 0) {
+    if (fetchingRef.current) return
+    fetchingRef.current = true
     setLoading(true)
     setFetchError(null)
     try {
-      const { data, error } = await supabase.from('vets').select('*')
+      const { data, error } = await supabase.from('vets').select('id,name,specialty,photo,rating,review_count,available_animals,night_ok,is_online,avg_response_min')
       if (error) {
         throw new Error(`${error.message} (code: ${error.code})`)
       }
       setVets(data || [])
       setLoading(false)
+      fetchingRef.current = false
     } catch (e) {
       // 最大2回リトライ（初回 + 2回 = 計3回試行）
       if (retryCount < 2) {
         const delay = (retryCount + 1) * 2000 // 2秒, 4秒
         console.warn(`vets fetch failed (attempt ${retryCount + 1}), retrying in ${delay}ms...`, e.message)
+        fetchingRef.current = false
         setTimeout(() => fetchVets(retryCount + 1), delay)
       } else {
         setFetchError(`vets: ${e.message}`)
         setLoading(false)
+        fetchingRef.current = false
       }
     }
   }

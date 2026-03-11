@@ -53,7 +53,7 @@ export default function History() {
       try {
         const { data, error } = await supabase
           .from('consultations')
-          .select('*, vets(id, name, specialty, photo)')
+          .select('id,vet_id,status,symptoms,pet,started_at,created_at,duration,total_amount,base_amount,vets(id,name,specialty,photo)')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
         if (error) {
