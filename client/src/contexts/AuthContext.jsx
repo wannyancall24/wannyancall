@@ -35,19 +35,15 @@ export function AuthProvider({ children }) {
       }
     }
 
-    // 初回セッション取得（3秒タイムアウト付き）
-    let settled = false
+    // 初回セッション取得（5秒タイムアウト付き）
+    let timedOut = false
     const timeout = setTimeout(() => {
-      if (!settled) {
-        settled = true
-        console.warn('Auth: getSession timed out after 3s, treating as logged out')
-        setLoading(false)
-      }
-    }, 3000)
+      timedOut = true
+      console.warn('Auth: getSession timed out after 5s, showing as logged out temporarily')
+      setLoading(false)
+    }, 5000)
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (settled) return // タイムアウト済みなら無視
-      settled = true
       clearTimeout(timeout)
       const u = session?.user ?? null
       currentUserId.current = u?.id ?? null
@@ -56,10 +52,12 @@ export function AuthProvider({ children }) {
         const r = await fetchRole(u.id)
         setRole(r)
       }
+      // タイムアウト済みでもセッションが取れたら反映する
+      if (timedOut) {
+        console.log('Auth: getSession resolved after timeout, updating state')
+      }
       setLoading(false)
     }).catch((e) => {
-      if (settled) return
-      settled = true
       clearTimeout(timeout)
       setAuthError(`Auth init: ${e.message}`)
       setLoading(false)

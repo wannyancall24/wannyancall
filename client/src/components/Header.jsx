@@ -12,7 +12,7 @@ const titles = {
 export default function Header({ userMode, setUserMode }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const { user, role, signOut } = useAuth()
+  const { user, role, loading, signOut } = useAuth()
   const isVetPage = location.pathname.startsWith('/vet/')
   const isBooking = location.pathname.startsWith('/booking/')
   const title = isVetPage ? '獣医師プロフィール' : isBooking ? '予約・決済' : (titles[location.pathname] || 'WanNyanCall24')
@@ -35,7 +35,9 @@ export default function Header({ userMode, setUserMode }) {
           <span style={{ fontSize: '1.4rem' }}>🐾</span>
           <span style={{ fontWeight: 700, fontSize: '1.05rem', color: '#2a9d8f' }}>{title}</span>
         </div>
-        {user ? (
+        {loading ? (
+          <div style={{ width: 80 }} />
+        ) : user ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{
               fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 50,

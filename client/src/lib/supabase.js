@@ -20,7 +20,8 @@ function createFetchWithTimeout(timeoutMs = 15000) {
   return (url, options = {}) => {
     // 認証エンドポイントはタイムアウトを適用しない（セッション保持に必要）
     const isAuthRequest = typeof url === 'string' && url.includes('/auth/')
-    if (isAuthRequest) {
+    // 既にsignalが設定されている場合はそのまま使う（Supabase内部のAbortControllerと衝突防止）
+    if (isAuthRequest || options.signal) {
       return fetch(url, options)
     }
     const controller = new AbortController()

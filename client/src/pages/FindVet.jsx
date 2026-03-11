@@ -55,27 +55,25 @@ export default function FindVet() {
     if (!getCached('vets')) setLoading(true)
     setFetchError(null)
     try {
-      const { data, error, count } = await supabase
+      console.log(`[FindVet] fetching vets (attempt ${retryCount + 1})...`)
+      const { data, error, status, statusText } = await supabase
         .from('vets')
-        .select('id,name,specialty,photo,rating,review_count,available_animals,night_ok,is_online,avg_response_min', { count: 'exact' })
+        .select('id,name,specialty,photo,rating,review_count,available_animals,night_ok,is_online,avg_response_min')
+      console.log(`[FindVet] response: status=${status}, rows=${data?.length ?? 0}, error=${error?.message || 'none'}`)
       if (error) {
         throw new Error(`${error.message} (code: ${error.code})`)
       }
-      // RLSで0件の場合はエラーとして扱う（データはあるがRLSで見えない可能性）
-      if ((!data || data.length === 0) && retryCount === 0) {
-        console.warn(`vets query returned 0 rows (count: ${count}). RLS may be blocking.`)
-      }
       setVets(data || [])
       if (data && data.length > 0) {
-        setCache('vets', data, 120000) // 2分キャッシュ
+        setCache('vets', data, 120000)
       }
       setLoading(false)
       fetchingRef.current = false
     } catch (e) {
+      console.error(`[FindVet] fetch error (attempt ${retryCount + 1}):`, e.message)
       // 最大2回リトライ（初回 + 2回 = 計3回試行）
       if (retryCount < 2) {
-        const delay = (retryCount + 1) * 2000 // 2秒, 4秒
-        console.warn(`vets fetch failed (attempt ${retryCount + 1}), retrying in ${delay}ms...`, e.message)
+        const delay = (retryCount + 1) * 2000
         fetchingRef.current = false
         setTimeout(() => fetchVets(retryCount + 1), delay)
       } else {
