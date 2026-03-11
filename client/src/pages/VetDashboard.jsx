@@ -219,7 +219,7 @@ export default function VetDashboard() {
     { label: '延長 +15分', base: 3000, vet: 1500 },
     { label: '夜間加算（20〜22時）', base: 1000, vet: 500 },
     { label: '深夜加算（22〜8時）', base: 1500, vet: 750 },
-    { label: '指名料', base: 500, vet: 250 },
+    { label: '指名料', base: 500, vet: 500 },
   ]
 
   const EXOTIC_ITEMS = [
@@ -228,7 +228,7 @@ export default function VetDashboard() {
     { label: '延長 +15分', base: 4500, vet: 2250 },
     { label: '夜間加算（20〜22時）', base: 1000, vet: 500 },
     { label: '深夜加算（22〜8時）', base: 1500, vet: 750 },
-    { label: '指名料', base: 500, vet: 250 },
+    { label: '指名料', base: 500, vet: 500 },
   ]
 
   const renderApplicationStatus = () => (
