@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS public.messages (
   sender_role text NOT NULL CHECK (sender_role IN ('user', 'vet')),
   content text,
   image_url text,
+  video_url text,
   created_at timestamptz DEFAULT now()
 );
 

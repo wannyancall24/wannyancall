@@ -119,16 +119,19 @@ export default function ChatRoom() {
     setSending(false)
   }
 
-  // 画像送信
-  async function handleImageUpload(e) {
+  // 画像・動画送信
+  async function handleFileUpload(e) {
     const file = e.target.files?.[0]
     if (!file) return
-    if (!file.type.startsWith('image/')) {
-      showToast('画像ファイルを選択してください', true)
+    const isImage = file.type.startsWith('image/')
+    const isVideo = file.type.startsWith('video/')
+    if (!isImage && !isVideo) {
+      showToast('画像または動画ファイルを選択してください', true)
       return
     }
-    if (file.size > 5 * 1024 * 1024) {
-      showToast('5MB以下の画像を選択してください', true)
+    const maxSize = isVideo ? 50 * 1024 * 1024 : 5 * 1024 * 1024
+    if (file.size > maxSize) {
+      showToast(isVideo ? '50MB以下の動画を選択してください' : '5MB以下の画像を選択してください', true)
       return
     }
     setUploading(true)
@@ -138,19 +141,24 @@ export default function ChatRoom() {
       .from('chat-images')
       .upload(path, file)
     if (uploadError) {
-      showToast('画像のアップロードに失敗しました', true)
+      showToast('ファイルのアップロードに失敗しました', true)
       setUploading(false)
       return
     }
     const { data: urlData } = supabase.storage
       .from('chat-images')
       .getPublicUrl(path)
-    await supabase.from('messages').insert({
+    const msgData = {
       room_id: roomId,
       sender_id: user.id,
       sender_role: role === 'vet' ? 'vet' : 'user',
-      image_url: urlData.publicUrl,
-    })
+    }
+    if (isVideo) {
+      msgData.video_url = urlData.publicUrl
+    } else {
+      msgData.image_url = urlData.publicUrl
+    }
+    await supabase.from('messages').insert(msgData)
     setUploading(false)
     fileInputRef.current.value = ''
   }
@@ -287,7 +295,18 @@ export default function ChatRoom() {
                     {m.sender_role === 'vet' ? `${room.vets?.name || '獣医師'}` : '飼い主'}
                   </div>
                 )}
-                {m.image_url ? (
+                {m.video_url ? (
+                  <video
+                    src={m.video_url}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    style={{
+                      maxWidth: '100%', borderRadius: 12,
+                      border: '1px solid #e5e7eb', background: '#000',
+                    }}
+                  />
+                ) : m.image_url ? (
                   <img
                     src={m.image_url}
                     alt="送信画像"
@@ -367,9 +386,9 @@ export default function ChatRoom() {
         }}>
           <input
             type="file"
-            accept="image/*"
+            accept="image/*,video/*"
             ref={fileInputRef}
-            onChange={handleImageUpload}
+            onChange={handleFileUpload}
             style={{ display: 'none' }}
           />
           <button
@@ -383,7 +402,7 @@ export default function ChatRoom() {
               flexShrink: 0, opacity: uploading ? 0.5 : 1,
             }}
           >
-            {uploading ? '...' : '📷'}
+            {uploading ? '...' : '📎'}
           </button>
           <input
             className="form-input"
