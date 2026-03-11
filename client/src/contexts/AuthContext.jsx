@@ -96,11 +96,21 @@ export function AuthProvider({ children }) {
   }, [])
 
   const signOut = useCallback(async () => {
-    if (!supabaseReady) return
-    await supabase.auth.signOut()
+    // 先にローカル状態をクリア（画面遷移を即時反映）
     currentUserId.current = null
     setUser(null)
     setRole(null)
+    // Supabaseのサインアウトは非同期で実行（ハングしても影響なし）
+    if (supabaseReady) {
+      try {
+        await Promise.race([
+          supabase.auth.signOut(),
+          new Promise(resolve => setTimeout(resolve, 3000)),
+        ])
+      } catch {
+        // サインアウトAPIが失敗してもローカルは既にクリア済み
+      }
+    }
   }, [])
 
   return (
