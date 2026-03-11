@@ -15,9 +15,14 @@ export const supabaseDebugInfo = {
   isConfigured,
 }
 
-// スマホブラウザ対応: fetch にタイムアウト付きAbortController を使用
+// スマホブラウザ対応: データ取得のみタイムアウト付き（認証リクエストは除外）
 function createFetchWithTimeout(timeoutMs = 15000) {
   return (url, options = {}) => {
+    // 認証エンドポイントはタイムアウトを適用しない（セッション保持に必要）
+    const isAuthRequest = typeof url === 'string' && url.includes('/auth/')
+    if (isAuthRequest) {
+      return fetch(url, options)
+    }
     const controller = new AbortController()
     const id = setTimeout(() => controller.abort(), timeoutMs)
     return fetch(url, {
@@ -37,6 +42,8 @@ export const supabase = isConfigured
         params: { eventsPerSecond: 1 },
       },
       auth: {
+        storageKey: 'wannyancall-auth',
+        storage: window.localStorage,
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true,

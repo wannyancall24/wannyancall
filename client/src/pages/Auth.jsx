@@ -29,6 +29,7 @@ export default function Auth() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [toast, setToast] = useState(null)
   const navigate = useNavigate()
   const { user, role } = useAuth()
 
@@ -44,12 +45,13 @@ export default function Auth() {
     setError('')
     setLoading(true)
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    setLoading(false)
     if (error) {
+      setLoading(false)
       setError('メールアドレスまたはパスワードが正しくありません')
       return
     }
-    navigate('/')
+    setToast('ログインしました')
+    setTimeout(() => navigate('/'), 800)
   }
 
   async function handleRegister(e) {
@@ -222,7 +224,18 @@ export default function Auth() {
               <p onClick={handleForgotPassword} style={{ textAlign: 'right', color: '#2a9d8f', fontSize: '0.82rem', marginBottom: 20, cursor: 'pointer', fontWeight: 600 }}>
                 パスワードをお忘れですか？
               </p>
-              <button type="submit" className="btn-primary" disabled={loading} style={{ opacity: loading ? 0.7 : 1 }}>
+              <button type="submit" className="btn-primary" disabled={loading} style={{
+                opacity: loading ? 0.7 : 1,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}>
+                {loading && (
+                  <span style={{
+                    width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)',
+                    borderTopColor: '#fff', borderRadius: '50%',
+                    display: 'inline-block',
+                    animation: 'spin 0.6s linear infinite',
+                  }} />
+                )}
                 {loading ? 'ログイン中...' : 'ログイン'}
               </button>
             </form>
@@ -280,6 +293,29 @@ export default function Auth() {
           </span>
         </p>
       </div>
+
+      {/* Toast notification */}
+      {toast && (
+        <div style={{
+          position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)',
+          background: '#2a9d8f', color: '#fff', padding: '12px 24px', borderRadius: 50,
+          fontWeight: 700, fontSize: '0.9rem', boxShadow: '0 4px 20px rgba(42,157,143,0.4)',
+          zIndex: 9999, animation: 'toastIn 0.3s ease-out',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span>&#10003;</span> {toast}
+        </div>
+      )}
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes toastIn {
+          from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+          to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+      `}</style>
     </div>
   )
 }
