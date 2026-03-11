@@ -52,15 +52,23 @@ export default function FindVet() {
   async function fetchVets(retryCount = 0) {
     if (fetchingRef.current) return
     fetchingRef.current = true
-    setLoading(true)
+    if (!getCached('vets')) setLoading(true)
     setFetchError(null)
     try {
-      const { data, error } = await supabase.from('vets').select('id,name,specialty,photo,rating,review_count,available_animals,night_ok,is_online,avg_response_min')
+      const { data, error, count } = await supabase
+        .from('vets')
+        .select('id,name,specialty,photo,rating,review_count,available_animals,night_ok,is_online,avg_response_min', { count: 'exact' })
       if (error) {
         throw new Error(`${error.message} (code: ${error.code})`)
       }
+      // RLSで0件の場合はエラーとして扱う（データはあるがRLSで見えない可能性）
+      if ((!data || data.length === 0) && retryCount === 0) {
+        console.warn(`vets query returned 0 rows (count: ${count}). RLS may be blocking.`)
+      }
       setVets(data || [])
-      setCache('vets', data || [], 120000) // 2分キャッシュ
+      if (data && data.length > 0) {
+        setCache('vets', data, 120000) // 2分キャッシュ
+      }
       setLoading(false)
       fetchingRef.current = false
     } catch (e) {
@@ -153,6 +161,14 @@ export default function FindVet() {
             <div style={{ fontSize: '3rem', marginBottom: 12 }}>🐾</div>
             <p style={{ fontWeight: 600 }}>条件に合う獣医師が見つかりませんでした</p>
             <p style={{ fontSize: '0.85rem', marginTop: 8 }}>絞り込みを変更してみてください</p>
+            {vets.length === 0 && (
+              <div style={{ marginTop: 16 }}>
+                <p style={{ fontSize: '0.75rem', color: '#dc2626', marginBottom: 8 }}>
+                  データ取得数: {vets.length}件（RLSでブロックされている可能性があります）
+                </p>
+                <button onClick={() => fetchVets()} className="btn-secondary" style={{ width: 'auto', padding: '8px 20px' }}>再取得</button>
+              </div>
+            )}
           </div>
         ) : (
           filtered.map(v => (
