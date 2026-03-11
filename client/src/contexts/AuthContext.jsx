@@ -3,6 +3,14 @@ import { supabase, supabaseReady } from '../lib/supabase'
 
 const AuthContext = createContext(null)
 
+// === DEBUG: AuthContext デバッグログ（画面表示用） ===
+const authDebugLog = []
+const authDebugStartTime = Date.now()
+function authTs() { return ((Date.now() - authDebugStartTime) / 1000).toFixed(2) + 's' }
+function authLog(msg) { authDebugLog.push(`[${authTs()}] ${msg}`) }
+// グローバルに公開して FindVet から参照可能に
+window.__authDebugLog = authDebugLog
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [role, setRole] = useState(null)
@@ -12,25 +20,34 @@ export function AuthProvider({ children }) {
   const currentUserId = useRef(null)
 
   useEffect(() => {
+    authLog(`useEffect: supabaseReady=${supabaseReady}`)
+
     if (!supabaseReady) {
+      authLog('supabaseReady=false, setLoading(false)')
       setLoading(false)
       return
     }
 
     // StrictMode対策: 二重実行を防止
-    if (initialized.current) return
+    if (initialized.current) {
+      authLog('already initialized, skip')
+      return
+    }
     initialized.current = true
 
     async function fetchRole(userId) {
+      authLog(`fetchRole: start for ${userId.slice(0,8)}`)
       try {
         const { data, error } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', userId)
           .single()
+        authLog(`fetchRole: result=${data?.role ?? 'null'}, error=${error?.message || 'none'}`)
         if (error) return null
         return data?.role ?? null
-      } catch {
+      } catch (e) {
+        authLog(`fetchRole: exception=${e.message}`)
         return null
       }
     }
@@ -39,26 +56,26 @@ export function AuthProvider({ children }) {
     let timedOut = false
     const timeout = setTimeout(() => {
       timedOut = true
-      console.warn('Auth: getSession timed out after 5s, showing as logged out temporarily')
+      authLog('getSession: TIMED OUT after 5s')
       setLoading(false)
     }, 5000)
 
+    authLog('getSession: calling...')
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       clearTimeout(timeout)
       const u = session?.user ?? null
+      authLog(`getSession: resolved, user=${u?.id?.slice(0,8) || 'null'}, timedOut=${timedOut}`)
       currentUserId.current = u?.id ?? null
       setUser(u)
       if (u) {
         const r = await fetchRole(u.id)
         setRole(r)
       }
-      // タイムアウト済みでもセッションが取れたら反映する
-      if (timedOut) {
-        console.log('Auth: getSession resolved after timeout, updating state')
-      }
+      authLog('getSession: setLoading(false)')
       setLoading(false)
     }).catch((e) => {
       clearTimeout(timeout)
+      authLog(`getSession: CATCH error=${e.message}`)
       setAuthError(`Auth init: ${e.message}`)
       setLoading(false)
     })
