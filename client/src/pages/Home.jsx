@@ -626,9 +626,17 @@ export default function Home() {
       {/* Footer */}
       <footer style={{ borderTop: '1px solid #e5e7eb', padding: '20px 16px', textAlign: 'center' }}>
         <p style={{ fontSize: '0.8rem', color: '#9ca3af', marginBottom: 10 }}>© 2024 WanNyanCall24</p>
-        <Link to="/legal" style={{ fontSize: '0.82rem', color: '#2a9d8f', fontWeight: 600, textDecoration: 'none' }}>
-          📄 特定商取引法に基づく表記
-        </Link>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <Link to="/tokushoho" style={{ fontSize: '0.82rem', color: '#2a9d8f', fontWeight: 600, textDecoration: 'none' }}>
+            📄 特定商取引法に基づく表記
+          </Link>
+          <Link to="/terms" style={{ fontSize: '0.82rem', color: '#2a9d8f', fontWeight: 600, textDecoration: 'none' }}>
+            利用規約
+          </Link>
+          <Link to="/privacy" style={{ fontSize: '0.82rem', color: '#2a9d8f', fontWeight: 600, textDecoration: 'none' }}>
+            プライバシーポリシー
+          </Link>
+        </div>
       </footer>
 
       {/* Exotic Modal */}
