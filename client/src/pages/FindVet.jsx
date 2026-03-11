@@ -25,6 +25,11 @@ export default function FindVet() {
   const [sortBy, setSortBy] = useState('評価順')
 
   useEffect(() => {
+    if (!supabaseReady) {
+      setFetchError('Supabase未設定: 環境変数を確認してください')
+      setLoading(false)
+      return
+    }
     fetchVets()
   }, [])
 
@@ -32,7 +37,11 @@ export default function FindVet() {
     setLoading(true)
     setFetchError(null)
     try {
-      const { data, error } = await supabase.from('vets').select('*')
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('タイムアウト: 5秒以内に応答がありませんでした')), 5000)
+      )
+      const query = supabase.from('vets').select('*')
+      const { data, error } = await Promise.race([query, timeout])
       if (error) {
         setFetchError(`vets: ${error.message} (code: ${error.code})`)
       } else {
