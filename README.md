@@ -39,6 +39,57 @@ GOOGLE_PLACES_API_KEY=AIzaSy...
 
 ---
 
+## Supabase テーブル・関数セットアップ
+
+マイページのペット機能・退会機能を使うには、Supabase の SQL Editor で以下を実行してください。
+
+### 1. pets テーブル
+
+```sql
+create table if not exists pets (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  name        text not null,
+  species     text,
+  breed       text,
+  age         integer,
+  weight      text,
+  birthday    date,
+  note        text,
+  icon        text,
+  created_at  timestamptz default now()
+);
+
+-- Row Level Security
+alter table pets enable row level security;
+
+create policy "ユーザーは自分のペットのみ参照可" on pets
+  for select using (auth.uid() = user_id);
+
+create policy "ユーザーは自分のペットのみ追加可" on pets
+  for insert with check (auth.uid() = user_id);
+
+create policy "ユーザーは自分のペットのみ更新可" on pets
+  for update using (auth.uid() = user_id);
+
+create policy "ユーザーは自分のペットのみ削除可" on pets
+  for delete using (auth.uid() = user_id);
+```
+
+### 2. 退会（アカウント削除）RPC関数
+
+```sql
+create or replace function delete_user()
+returns void
+language sql
+security definer
+as $$
+  delete from auth.users where id = auth.uid();
+$$;
+```
+
+---
+
 ## Google Search Console への登録手順
 
 ### 1. プロパティを追加
