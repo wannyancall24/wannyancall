@@ -25,8 +25,10 @@ import * as cheerio from 'cheerio'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { config } from 'dotenv'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+config({ path: path.join(__dirname, '.env') })
 
 // ── 引数パース ──────────────────────────────────────────────
 const args = Object.fromEntries(
@@ -36,7 +38,7 @@ const args = Object.fromEntries(
   })
 )
 
-const API_KEY   = args.key
+const API_KEY   = args.key || process.env.GOOGLE_PLACES_API_KEY
 const AREA      = args.area    || '東京都'
 const QUERY     = args.query   || '動物病院'
 const MAX       = Math.min(parseInt(args.max || '60', 10), 180)

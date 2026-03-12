@@ -1,6 +1,9 @@
 node_modules/
 client/node_modules/
 server/node_modules/
+scripts/node_modules/
 client/dist/
 .env
 .env.local
+scripts/.env
+scripts/vet-clinics-*.csv
