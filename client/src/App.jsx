@@ -18,6 +18,8 @@ import Admin from './pages/Admin'
 import ChatRoom from './pages/ChatRoom'
 import TokushohoPage from './pages/TokushohoPage'
 import VetRecruit from './pages/VetRecruit'
+import VetFaq from './pages/VetFaq'
+import PressRelease from './pages/PressRelease'
 
 // 獣医師専用ルートのガード
 function VetRoute({ children }) {
@@ -88,6 +90,8 @@ function AppInner() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/vet-recruit" element={<VetRecruit />} />
+        <Route path="/vet-faq" element={<VetFaq />} />
+        <Route path="/press" element={<PressRelease />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
       <BottomNav userMode={userMode} />

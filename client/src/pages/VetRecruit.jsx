@@ -110,13 +110,21 @@ export default function VetRecruit() {
     return e
   }
 
-  function handleSubmit(ev) {
+  async function handleSubmit(ev) {
     ev.preventDefault()
     const e = validate()
     if (Object.keys(e).length > 0) { setErrors(e); return }
     const entry = { ...form, id: Date.now(), submittedAt: new Date().toISOString(), status: 'new' }
     const existing = (() => { try { return JSON.parse(localStorage.getItem(INQUIRY_KEY)) || [] } catch { return [] } })()
     localStorage.setItem(INQUIRY_KEY, JSON.stringify([entry, ...existing]))
+    // 通知メール送信（サーバーが起動していれば）
+    try {
+      await fetch('http://localhost:4000/api/vet/notify-registration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+    } catch { /* サーバー未起動でも登録は成功 */ }
     setSubmitted(true)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -135,6 +143,7 @@ export default function VetRecruit() {
         keywords="獣医師 副業,獣医師 在宅ワーク,獣医師 オンライン,獣医師 アルバイト,獣医師 フリーランス,獣医師 副業 在宅,オンライン獣医師相談 獣医師側,夜間 獣医師 副業,獣医師 スキマ時間"
         canonical="/vet-recruit"
         ogType="website"
+        ogImage="https://wannyancall24.com/ogp-vet-recruit.svg"
         jsonLd={JSON_LD}
       />
 
@@ -163,6 +172,33 @@ export default function VetRecruit() {
           </button>
           <div style={{ marginTop: 16, fontSize: '0.82rem', color: 'rgba(255,255,255,0.65)' }}>
             審査あり・登録無料・いつでも退会可
+          </div>
+        </div>
+
+        {/* ── SNSシェアボタン ── */}
+        <div style={{ background: '#fff', padding: '14px 16px', borderBottom: '1px solid #e5e7eb' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, maxWidth: 440, margin: '0 auto' }}>
+            <span style={{ fontSize: '0.78rem', color: '#9ca3af', flexShrink: 0 }}>シェア：</span>
+            <a
+              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent('獣医師の副業・在宅ワークに最適！\nWanNyanCall24で1相談1,500円〜の副収入を。登録無料。\nhttps://wannyancall24.com/vet-recruit\n\n#獣医師副業 #獣医師在宅ワーク #オンライン獣医師 #獣医師募集 #WanNyanCall24')}`}
+              target="_blank" rel="noreferrer"
+              style={{ background: '#000', color: '#fff', borderRadius: 6, padding: '6px 12px', fontSize: '0.78rem', fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}
+            >𝕏 X</a>
+            <a
+              href={`https://line.me/R/msg/text/?${encodeURIComponent('獣医師の副業・在宅ワークに！WanNyanCall24\nhttps://wannyancall24.com/vet-recruit')}`}
+              target="_blank" rel="noreferrer"
+              style={{ background: '#06C755', color: '#fff', borderRadius: 6, padding: '6px 12px', fontSize: '0.78rem', fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}
+            >LINE</a>
+            <a
+              href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent('https://wannyancall24.com/vet-recruit')}`}
+              target="_blank" rel="noreferrer"
+              style={{ background: '#1877F2', color: '#fff', borderRadius: 6, padding: '6px 12px', fontSize: '0.78rem', fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}
+            >Facebook</a>
+            <a
+              href={`https://www.threads.net/intent/post?text=${encodeURIComponent('獣医師の副業・在宅ワークに最適！WanNyanCall24で1相談1,500円〜\nhttps://wannyancall24.com/vet-recruit\n#獣医師副業 #獣医師在宅ワーク')}`}
+              target="_blank" rel="noreferrer"
+              style={{ background: '#101010', color: '#fff', borderRadius: 6, padding: '6px 12px', fontSize: '0.78rem', fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}
+            >Threads</a>
           </div>
         </div>
 

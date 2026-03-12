@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a3a4a"/>
+      <stop offset="100%" style="stop-color:#2a9d8f"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg2)"/>
+  <circle cx="1100" cy="80" r="220" fill="rgba(255,255,255,0.04)"/>
+  <circle cx="100" cy="560" r="160" fill="rgba(244,162,97,0.08)"/>
+  <!-- Badge -->
+  <rect x="80" y="80" width="280" height="48" rx="24" fill="rgba(244,162,97,0.9)"/>
+  <text x="220" y="113" font-size="22" font-weight="700" fill="#fff" text-anchor="middle" font-family="sans-serif">🐾 獣医師パートナー募集</text>
+  <!-- Main headline -->
+  <text x="80" y="230" font-size="66" font-weight="900" fill="#ffffff" font-family="'Noto Sans JP', sans-serif">獣医師免許を活かして</text>
+  <text x="80" y="316" font-size="66" font-weight="900" fill="#f4a261" font-family="'Noto Sans JP', sans-serif">在宅で副収入を得よう</text>
+  <!-- Points -->
+  <text x="80" y="390" font-size="30" fill="rgba(255,255,255,0.9)" font-family="sans-serif">✅ 1相談1,500円〜（15分）　✅ 夜間・深夜加算あり</text>
+  <text x="80" y="435" font-size="30" fill="rgba(255,255,255,0.9)" font-family="sans-serif">✅ 完全在宅・フルリモート　✅ 登録・月額費用 完全無料</text>
+  <!-- URL -->
+  <text x="80" y="545" font-size="28" fill="rgba(255,255,255,0.6)" font-family="monospace">wannyancall24.com/vet-recruit</text>
+  <text x="80" y="590" font-size="22" fill="rgba(255,255,255,0.4)" font-family="sans-serif">#獣医師副業 #獣医師在宅ワーク #獣医師募集 #WanNyanCall24</text>
+</svg>

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#264653"/>
+      <stop offset="100%" style="stop-color:#2a9d8f"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <!-- Decorative circles -->
+  <circle cx="1050" cy="100" r="200" fill="rgba(255,255,255,0.04)"/>
+  <circle cx="150" cy="530" r="150" fill="rgba(255,255,255,0.04)"/>
+  <!-- Paw icon area -->
+  <rect x="80" y="80" width="100" height="100" rx="24" fill="rgba(255,255,255,0.15)"/>
+  <text x="130" y="147" font-size="56" text-anchor="middle" font-family="serif">🐾</text>
+  <!-- Title -->
+  <text x="80" y="270" font-size="72" font-weight="900" fill="#ffffff" font-family="'Noto Sans JP', sans-serif">WanNyanCall24</text>
+  <!-- Subtitle -->
+  <text x="80" y="340" font-size="36" fill="rgba(255,255,255,0.88)" font-family="sans-serif">24時間対応 オンライン獣医師相談サービス</text>
+  <!-- Tags -->
+  <rect x="80" y="380" width="220" height="48" rx="24" fill="rgba(244,162,97,0.9)"/>
+  <text x="190" y="412" font-size="22" font-weight="700" fill="#fff" text-anchor="middle" font-family="sans-serif">獣医師 副業・在宅</text>
+  <rect x="316" y="380" width="220" height="48" rx="24" fill="rgba(255,255,255,0.2)"/>
+  <text x="426" y="412" font-size="22" font-weight="700" fill="#fff" text-anchor="middle" font-family="sans-serif">夜間・深夜 対応</text>
+  <rect x="552" y="380" width="200" height="48" rx="24" fill="rgba(255,255,255,0.2)"/>
+  <text x="652" y="412" font-size="22" font-weight="700" fill="#fff" text-anchor="middle" font-family="sans-serif">登録無料</text>
+  <!-- URL -->
+  <text x="80" y="560" font-size="28" fill="rgba(255,255,255,0.6)" font-family="monospace">wannyancall24.com</text>
+  <!-- Hashtags -->
+  <text x="80" y="600" font-size="22" fill="rgba(255,255,255,0.45)" font-family="sans-serif">#獣医師副業 #獣医師在宅ワーク #オンライン獣医師相談</text>
+</svg>
