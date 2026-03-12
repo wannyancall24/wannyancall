@@ -7,7 +7,7 @@ const BANNED_KEY = 'bannedUsers'
 const EMAIL_LOG_KEY = 'emailCampaignLog'
 const EMAIL_SETTINGS_KEY = 'emailCampaignSettings'
 
-const DEFAULT_TEMPLATE_HTML = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#222;">
+const DEFAULT_TEMPLATE_HTML = `<div style="font-family:-apple-system,'Hiragino Sans','Noto Sans JP','Hiragino Kaku Gothic ProN',Meiryo,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#222;line-height:1.7;">
   <div style="text-align:center;margin-bottom:24px;">
     <div style="font-size:2.5rem;">🐾</div>
     <h1 style="color:#2a9d8f;font-size:1.4rem;margin:8px 0;">WanNyanCall24 獣医師パートナーご招待</h1>
@@ -20,26 +20,26 @@ const DEFAULT_TEMPLATE_HTML = `<div style="font-family:sans-serif;max-width:600p
 
   <div style="background:#e8f6f5;border-radius:12px;padding:16px;margin:20px 0;">
     <h3 style="color:#2a9d8f;margin:0 0 12px;">📋 サービスの特長</h3>
-    <ul style="margin:0;padding-left:20px;line-height:1.8;">
+    <ul style="margin:0;padding-left:20px;line-height:2;">
       <li>スキマ時間を活用して副業収入を獲得</li>
-      <li>在宅でのオンライン相談対応</li>
-      <li>1相談あたり¥2,200（15分〜）</li>
-      <li>夜間・休日対応で高需要</li>
+      <li>在宅でのオンライン相談対応（スマホ・パソコン対応）</li>
+      <li>１相談あたり1,500円〜（相談料3,000円の50％）</li>
+      <li>夜間・深夜加算あり、指名料は全額獣医師へ</li>
       <li>登録・月額費用 <strong>完全無料</strong></li>
     </ul>
   </div>
 
-  <p>先生のご専門知識を活かし、多くのペットオーナーのお役に立てればと思いご連絡いたしました。</p>
+  <p>先生のご専門知識を活かし、深夜に困るペットオーナーのお役に立てればと思いご連絡いたしました。</p>
   <p>ご興味をお持ちいただけましたら、下記よりご登録をお願いいたします。</p>
 
   <div style="text-align:center;margin:28px 0;">
-    <a href="https://wannyancall24.com/auth" style="background:#2a9d8f;color:#fff;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:700;font-size:1rem;">
-      無料で獣医師登録する →
+    <a href="https://wannyancall24.com/vet-recruit" style="background:#2a9d8f;color:#fff;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:700;font-size:1rem;display:inline-block;">
+      無料で獣医師登録する
     </a>
   </div>
 
   <p style="font-size:0.85rem;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:16px;margin-top:24px;">
-    このメールにお心当たりのない場合や、配信停止をご希望の場合は、このメールにご返信ください。<br>
+    このメールにお心当たりのない場合は、お手数ですが破棄いただきますようお願い申し上げます。<br>
     WanNyanCall24 運営事務局
   </p>
   <p style="font-size:0.82rem;color:#9ca3af;margin-top:8px;">
@@ -621,8 +621,8 @@ export default function Admin() {
                         {sendResult.results && (
                           <div style={{ maxHeight: 120, overflowY: 'auto', fontSize: '0.75rem' }}>
                             {sendResult.results.map((r, i) => (
-                              <div key={i} style={{ color: r.status === 'ok' ? '#22c55e' : '#e05555', marginBottom: 2 }}>
-                                {r.status === 'ok' ? '✓' : '✗'} {r.email} {r.message ? `— ${r.message}` : ''}
+                              <div key={i} style={{ color: r.status === '送信済み' ? '#22c55e' : '#e05555', marginBottom: 2 }}>
+                                {r.status === '送信済み' ? '✓' : '✗'} {r.email} {r.message ? `— ${r.message}` : ''}
                               </div>
                             ))}
                           </div>

@@ -53,11 +53,11 @@ app.post('/api/rewards/calculate', async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 app.post('/api/vet/notify-registration', async (req, res) => {
   const { name, email, phone, specialty, message } = req.body
-  if (!email) return res.status(400).json({ error: 'email is required' })
+  if (!email) return res.status(400).json({ error: 'メールアドレスが必要です' })
 
   if (!RESEND_API_KEY || RESEND_API_KEY === 'your_resend_api_key_here') {
     // APIキー未設定でも登録自体は成功扱い（メール送信はスキップ）
-    return res.json({ ok: true, emailSent: false, reason: 'RESEND_API_KEY not configured' })
+    return res.json({ ok: true, emailSent: false, reason: 'APIキー未設定のためメール送信をスキップしました' })
   }
 
   const resend = new Resend(RESEND_API_KEY)
@@ -70,7 +70,7 @@ app.post('/api/vet/notify-registration', async (req, res) => {
       to: [ADMIN_EMAIL],
       subject: `【新規獣医師登録申請】${name || '（名前未入力）'} 先生`,
       html: `
-        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#222;">
+        <div style="font-family:-apple-system,'Hiragino Sans','Noto Sans JP','Hiragino Kaku Gothic ProN',Meiryo,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#222;">
           <h2 style="color:#2a9d8f;">🐾 新規獣医師登録申請が届きました</h2>
           <table style="width:100%;border-collapse:collapse;margin-top:16px;">
             <tr style="border-bottom:1px solid #e5e7eb;">
@@ -105,9 +105,9 @@ app.post('/api/vet/notify-registration', async (req, res) => {
         </div>
       `,
     })
-    results.adminEmail = 'sent'
+    results.adminEmail = '送信済み'
   } catch (err) {
-    results.adminEmail = `error: ${err.message}`
+    results.adminEmail = `送信失敗: ${err.message}`
   }
 
   // ── 獣医師へウェルカムメール ──
@@ -117,7 +117,7 @@ app.post('/api/vet/notify-registration', async (req, res) => {
       to: [email],
       subject: '【WanNyanCall24】ご登録ありがとうございます！審査のご案内',
       html: `
-        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#222;">
+        <div style="font-family:-apple-system,'Hiragino Sans','Noto Sans JP','Hiragino Kaku Gothic ProN',Meiryo,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#222;">
           <div style="text-align:center;margin-bottom:24px;">
             <div style="font-size:2.5rem;">🐾</div>
             <h1 style="color:#2a9d8f;font-size:1.4rem;margin:8px 0;">ご登録ありがとうございます！</h1>
@@ -161,9 +161,9 @@ app.post('/api/vet/notify-registration', async (req, res) => {
         </div>
       `,
     })
-    results.welcomeEmail = 'sent'
+    results.welcomeEmail = '送信済み'
   } catch (err) {
-    results.welcomeEmail = `error: ${err.message}`
+    results.welcomeEmail = `送信失敗: ${err.message}`
   }
 
   res.json({ ok: true, emailSent: true, results })
@@ -257,7 +257,7 @@ app.post('/api/admin/email/send-bulk', async (req, res) => {
 
   for (const recipient of recipients) {
     if (!recipient.email) {
-      results.push({ email: '(不明)', status: 'skip', message: 'メールアドレスなし' })
+      results.push({ email: '(不明)', status: 'スキップ', message: 'メールアドレスなし' })
       failCount++
       continue
     }
@@ -278,14 +278,14 @@ app.post('/api/admin/email/send-bulk', async (req, res) => {
         html: personalizedHtml,
       })
       if (error) {
-        results.push({ email: recipient.email, status: 'error', message: error.message })
+        results.push({ email: recipient.email, status: 'エラー', message: error.message })
         failCount++
       } else {
-        results.push({ email: recipient.email, status: 'ok', id: data?.id })
+        results.push({ email: recipient.email, status: '送信済み', id: data?.id })
         successCount++
       }
     } catch (err) {
-      results.push({ email: recipient.email, status: 'error', message: err.message })
+      results.push({ email: recipient.email, status: 'エラー', message: err.message })
       failCount++
     }
 
