@@ -19,7 +19,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function Auth() {
-  const [mode, setMode] = useState('login')
+  const [mode, setMode] = useState('login') // 'login' | 'register' | 'reset'
   const [userType, setUserType] = useState('owner')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -101,18 +101,21 @@ export default function Auth() {
     setError('現在はメール/パスワードでの登録のみ対応しています。')
   }
 
-  const handleForgotPassword = async () => {
+  const handleForgotPassword = async (e) => {
+    e.preventDefault()
     if (!email) {
-      setError('パスワードリセット用メールアドレスを入力してください')
+      setError('メールアドレスを入力してください')
       return
     }
     setLoading(true)
-    const { error } = await supabase.auth.resetPasswordForEmail(email)
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth`,
+    })
     setLoading(false)
     if (error) {
-      setError(error.message)
+      setError('送信に失敗しました。メールアドレスを確認してください。')
     } else {
-      setMessage('パスワードリセットメールを送信しました。')
+      setMessage('パスワードリセット用のメールを送信しました。メールをご確認ください。')
     }
   }
 
@@ -134,19 +137,81 @@ export default function Auth() {
         <div style={{ background: '#fff', borderRadius: 20, boxShadow: '0 4px 24px rgba(42,157,143,0.12)', padding: '24px 20px' }}>
 
           {/* Login / Register Tabs */}
-          <div style={{ display: 'flex', background: '#e8f6f5', borderRadius: 50, padding: 4, marginBottom: 20 }}>
-            {[{ key: 'login', label: 'ログイン' }, { key: 'register', label: '会員登録' }].map(m => (
-              <button key={m.key} onClick={() => { setMode(m.key); setError(''); setMessage('') }} style={{
-                flex: 1, padding: '10px', borderRadius: 50, border: 'none', cursor: 'pointer',
-                fontWeight: 700, fontSize: '0.95rem', transition: 'all 0.2s',
-                background: mode === m.key ? '#2a9d8f' : 'transparent',
-                color: mode === m.key ? '#fff' : '#2a9d8f',
-              }}>{m.label}</button>
-            ))}
-          </div>
+          {mode !== 'reset' && (
+            <div style={{ display: 'flex', background: '#e8f6f5', borderRadius: 50, padding: 4, marginBottom: 20 }}>
+              {[{ key: 'login', label: 'ログイン' }, { key: 'register', label: '会員登録' }].map(m => (
+                <button key={m.key} onClick={() => { setMode(m.key); setError(''); setMessage('') }} style={{
+                  flex: 1, padding: '10px', borderRadius: 50, border: 'none', cursor: 'pointer',
+                  fontWeight: 700, fontSize: '0.95rem', transition: 'all 0.2s',
+                  background: mode === m.key ? '#2a9d8f' : 'transparent',
+                  color: mode === m.key ? '#fff' : '#2a9d8f',
+                }}>{m.label}</button>
+              ))}
+            </div>
+          )}
+
+          {/* ── パスワードリセット画面 ── */}
+          {mode === 'reset' && (
+            <>
+              <div style={{ textAlign: 'center', marginBottom: 20 }}>
+                <div style={{ fontSize: '2.2rem', marginBottom: 8 }}>🔑</div>
+                <h2 style={{ fontWeight: 800, fontSize: '1.1rem', color: '#264653', marginBottom: 6 }}>パスワードをお忘れですか？</h2>
+                <p style={{ fontSize: '0.84rem', color: '#6b7280', lineHeight: 1.7 }}>
+                  登録済みのメールアドレスを入力してください。<br />パスワード再設定用のリンクをお送りします。
+                </p>
+              </div>
+
+              {error && (
+                <div style={{ background: '#fee2e2', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.85rem', color: '#dc2626', fontWeight: 600 }}>{error}</div>
+              )}
+              {message ? (
+                <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                  <div style={{ background: '#e8f6f5', borderRadius: 12, padding: '16px 14px', marginBottom: 20, fontSize: '0.88rem', color: '#2a9d8f', fontWeight: 600, lineHeight: 1.7 }}>
+                    ✅ {message}
+                  </div>
+                  <button
+                    onClick={() => { setMode('login'); setError(''); setMessage(''); setEmail('') }}
+                    className="btn-secondary"
+                    style={{ marginTop: 4 }}
+                  >ログイン画面に戻る</button>
+                </div>
+              ) : (
+                <form onSubmit={handleForgotPassword}>
+                  <div className="form-group">
+                    <label className="form-label">メールアドレス</label>
+                    <input
+                      className="form-input"
+                      type="email"
+                      placeholder="example@email.com"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      required
+                      autoFocus
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={loading}
+                    style={{ opacity: loading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                  >
+                    {loading && (
+                      <span style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.6s linear infinite' }} />
+                    )}
+                    {loading ? '送信中...' : 'リセットメールを送信する'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setMode('login'); setError(''); setMessage('') }}
+                    style={{ width: '100%', marginTop: 12, padding: '12px', background: 'none', border: 'none', color: '#9ca3af', fontSize: '0.88rem', cursor: 'pointer', fontWeight: 600 }}
+                  >← ログイン画面に戻る</button>
+                </form>
+              )}
+            </>
+          )}
 
           {/* User Type Toggle */}
-          <div style={{ marginBottom: 20 }}>
+          {mode !== 'reset' && <div style={{ marginBottom: 20 }}>
             <p style={{ fontSize: '0.82rem', color: '#6b7280', marginBottom: 8, fontWeight: 600 }}>アカウント種別</p>
             <div style={{ display: 'flex', gap: 8 }}>
               {[
@@ -166,10 +231,10 @@ export default function Auth() {
                 </button>
               ))}
             </div>
-          </div>
+          </div>}
 
           {/* Google Login */}
-          <button onClick={handleGoogleLogin} style={{
+          {mode !== 'reset' && <button onClick={handleGoogleLogin} style={{
             width: '100%', padding: '13px', borderRadius: 50,
             border: '1.5px solid #e5e7eb', background: '#fff', cursor: 'pointer',
             fontWeight: 700, fontSize: '0.92rem', color: '#264653',
@@ -183,21 +248,21 @@ export default function Auth() {
               <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
             </svg>
             Googleで{mode === 'login' ? 'ログイン' : '登録'}
-          </button>
+          </button>}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          {mode !== 'reset' && <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
             <div style={{ flex: 1, height: 1, background: '#e5e7eb' }} />
             <span style={{ fontSize: '0.8rem', color: '#9ca3af', whiteSpace: 'nowrap' }}>または</span>
             <div style={{ flex: 1, height: 1, background: '#e5e7eb' }} />
-          </div>
+          </div>}
 
-          {/* Error / Message */}
-          {error && (
+          {/* Error / Message (login/register) */}
+          {mode !== 'reset' && error && (
             <div style={{ background: '#fee2e2', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.85rem', color: '#dc2626', fontWeight: 600 }}>
               {error}
             </div>
           )}
-          {message && (
+          {mode !== 'reset' && message && (
             <div style={{ background: '#e8f6f5', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.85rem', color: '#2a9d8f', fontWeight: 600 }}>
               {message}
             </div>
@@ -220,8 +285,8 @@ export default function Auth() {
                   <EyeIcon open={showPass} />
                 </button>
               </div>
-              <p onClick={handleForgotPassword} style={{ textAlign: 'right', color: '#2a9d8f', fontSize: '0.82rem', marginBottom: 20, cursor: 'pointer', fontWeight: 600 }}>
-                パスワードをお忘れですか？
+              <p onClick={() => { setMode('reset'); setError(''); setMessage('') }} style={{ textAlign: 'right', color: '#2a9d8f', fontSize: '0.82rem', marginBottom: 20, cursor: 'pointer', fontWeight: 600 }}>
+                パスワードを忘れた方はこちら
               </p>
               <button type="submit" className="btn-primary" disabled={loading} style={{
                 opacity: loading ? 0.7 : 1,
@@ -284,13 +349,15 @@ export default function Auth() {
           )}
         </div>
 
-        <p style={{ textAlign: 'center', color: '#9ca3af', fontSize: '0.8rem', marginTop: 20 }}>
-          {mode === 'login' ? 'アカウントをお持ちでない方は' : 'すでにアカウントをお持ちの方は'}
-          <span style={{ color: '#2a9d8f', fontWeight: 700, cursor: 'pointer', marginLeft: 4 }}
-            onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); setMessage('') }}>
-            {mode === 'login' ? '会員登録' : 'ログイン'}
-          </span>
-        </p>
+        {mode !== 'reset' && (
+          <p style={{ textAlign: 'center', color: '#9ca3af', fontSize: '0.8rem', marginTop: 20 }}>
+            {mode === 'login' ? 'アカウントをお持ちでない方は' : 'すでにアカウントをお持ちの方は'}
+            <span style={{ color: '#2a9d8f', fontWeight: 700, cursor: 'pointer', marginLeft: 4 }}
+              onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); setMessage('') }}>
+              {mode === 'login' ? '会員登録' : 'ログイン'}
+            </span>
+          </p>
+        )}
       </div>
 
       {/* Toast notification */}
