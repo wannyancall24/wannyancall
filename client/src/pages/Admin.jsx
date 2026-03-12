@@ -42,6 +42,9 @@ const DEFAULT_TEMPLATE_HTML = `<div style="font-family:sans-serif;max-width:600p
     このメールにお心当たりのない場合や、配信停止をご希望の場合は、このメールにご返信ください。<br>
     WanNyanCall24 運営事務局
   </p>
+  <p style="font-size:0.82rem;color:#9ca3af;margin-top:8px;">
+    ※ 本メールの配信停止をご希望の場合は、wannyancall24@gmail.comまでご連絡ください。
+  </p>
 </div>`
 
 function loadReports() {
