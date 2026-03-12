@@ -113,7 +113,7 @@ export default function Auth() {
     })
     setLoading(false)
     if (error) {
-      setError('送信に失敗しました。メールアドレスを確認してください。')
+      setError(`送信に失敗しました: ${error.message}`)
     } else {
       setMessage('パスワードリセット用のメールを送信しました。メールをご確認ください。')
     }
