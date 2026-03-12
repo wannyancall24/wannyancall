@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 
 const ADMIN_PASSWORD = 'wannyan2024admin'
 const STORAGE_KEY = 'vetApplication'
-const REPORTS_KEY = 'userReports'
-const BANNED_KEY = 'bannedUsers'
 const EMAIL_LOG_KEY = 'emailCampaignLog'
 const EMAIL_SETTINGS_KEY = 'emailCampaignSettings'
 
@@ -47,12 +48,6 @@ const DEFAULT_TEMPLATE_HTML = `<div style="font-family:-apple-system,'Hiragino S
   </p>
 </div>`
 
-function loadReports() {
-  try { return JSON.parse(localStorage.getItem(REPORTS_KEY)) || [] } catch { return [] }
-}
-function loadBanned() {
-  try { return JSON.parse(localStorage.getItem(BANNED_KEY)) || [] } catch { return [] }
-}
 function loadEmailLog() {
   try { return JSON.parse(localStorage.getItem(EMAIL_LOG_KEY)) || [] } catch { return [] }
 }
@@ -105,16 +100,38 @@ function parseCsv(text) {
 }
 
 export default function Admin() {
+  const navigate = useNavigate()
+  const { user, isAdmin, loading: authLoading } = useAuth()
+
+  // パスワード認証（isAdmin=falseのときのフォールバック）
   const [authed, setAuthed] = useState(false)
   const [pw, setPw] = useState('')
   const [pwError, setPwError] = useState(false)
+
   const [activeTab, setActiveTab] = useState('applications')
+
+  // applications tab
   const [applications, setApplications] = useState([])
   const [selected, setSelected] = useState(null)
-  const [reports, setReports] = useState([])
-  const [banned, setBanned] = useState([])
-  const [banTarget, setBanTarget] = useState('')
-  const [banReason, setBanReason] = useState('')
+
+  // chats tab
+  const [chatRooms, setChatRooms] = useState([])
+  const [chatLoading, setChatLoading] = useState(false)
+  const [expandedRoom, setExpandedRoom] = useState(null)
+  const [roomMessages, setRoomMessages] = useState({})
+  const [forceCompleting, setForceCompleting] = useState(null)
+
+  // reports tab
+  const [dbReports, setDbReports] = useState([])
+  const [reportsLoading, setReportsLoading] = useState(false)
+  const [reportNote, setReportNote] = useState({})
+  const [updatingReport, setUpdatingReport] = useState(null)
+
+  // users tab
+  const [dbUsers, setDbUsers] = useState([])
+  const [usersLoading, setUsersLoading] = useState(false)
+  const [deletingUser, setDeletingUser] = useState(null)
+  const [blockingUser, setBlockingUser] = useState(null)
 
   // 営業メール関連
   const [emailSettings, setEmailSettings] = useState(loadEmailSettings())
@@ -130,27 +147,37 @@ export default function Admin() {
   const [showApiKey, setShowApiKey] = useState(false)
   const fileInputRef = useRef(null)
 
+  const isFullyAuthed = isAdmin || authed
+
+  // Redirect to auth if no user
   useEffect(() => {
-    if (authed) {
+    if (!authLoading && !user) {
+      navigate('/auth')
+    }
+  }, [authLoading, user, navigate])
+
+  // Load data when fully authed
+  useEffect(() => {
+    if (isFullyAuthed) {
       loadApplications()
-      setReports(loadReports())
-      setBanned(loadBanned())
       setEmailLog(loadEmailLog())
       setEmailSettings(loadEmailSettings())
     }
-  }, [authed])
+  }, [isFullyAuthed])
 
   useEffect(() => {
-    const handler = () => { setReports(loadReports()); setBanned(loadBanned()) }
-    window.addEventListener('reportUpdated', handler)
-    return () => window.removeEventListener('reportUpdated', handler)
-  }, [])
+    if (isFullyAuthed && activeTab === 'chats') fetchChats()
+  }, [isFullyAuthed, activeTab])
 
-  function saveEmailSettings(settings) {
-    localStorage.setItem(EMAIL_SETTINGS_KEY, JSON.stringify(settings))
-    setEmailSettings(settings)
-  }
+  useEffect(() => {
+    if (isFullyAuthed && activeTab === 'reports') fetchReports()
+  }, [isFullyAuthed, activeTab])
 
+  useEffect(() => {
+    if (isFullyAuthed && activeTab === 'users') fetchUsers()
+  }, [isFullyAuthed, activeTab])
+
+  // ── Applications (localStorage) ──
   function loadApplications() {
     const all = []
     for (let i = 0; i < localStorage.length; i++) {
@@ -174,16 +201,6 @@ export default function Admin() {
     setApplications(all)
   }
 
-  function handleLogin(e) {
-    e.preventDefault()
-    if (pw === ADMIN_PASSWORD) {
-      setAuthed(true)
-      setPwError(false)
-    } else {
-      setPwError(true)
-    }
-  }
-
   function updateStatus(key, newStatus) {
     const raw = localStorage.getItem(key)
     if (!raw) return
@@ -194,6 +211,90 @@ export default function Admin() {
     window.dispatchEvent(new Event('vetApplicationUpdated'))
     loadApplications()
     if (selected && selected.key === key) setSelected({ ...selected, status: newStatus })
+  }
+
+  // ── Chats (Supabase) ──
+  async function fetchChats() {
+    setChatLoading(true)
+    const { data } = await supabase
+      .from('chat_rooms')
+      .select('id,status,created_at,completed_at,total_amount,user_id,vet_id,vets(name),profiles(name)')
+      .order('created_at', { ascending: false })
+      .limit(50)
+    setChatRooms(data || [])
+    setChatLoading(false)
+  }
+
+  async function fetchRoomMessages(roomId) {
+    if (roomMessages[roomId]) return
+    const { data } = await supabase
+      .from('messages')
+      .select('id,sender_id,sender_role,content,created_at')
+      .eq('room_id', roomId)
+      .order('created_at', { ascending: true })
+    setRoomMessages(prev => ({ ...prev, [roomId]: data || [] }))
+  }
+
+  async function handleForceComplete(roomId) {
+    if (!confirm('このチャットを強制終了しますか？')) return
+    setForceCompleting(roomId)
+    await supabase.rpc('admin_force_complete', { room_id: roomId })
+    setForceCompleting(null)
+    fetchChats()
+  }
+
+  // ── Reports (Supabase) ──
+  async function fetchReports() {
+    setReportsLoading(true)
+    const { data } = await supabase
+      .from('reports')
+      .select('*')
+      .order('created_at', { ascending: false })
+    setDbReports(data || [])
+    setReportsLoading(false)
+  }
+
+  async function updateReportStatus(id, status) {
+    setUpdatingReport(id)
+    await supabase
+      .from('reports')
+      .update({ status, admin_note: reportNote[id] || null, updated_at: new Date().toISOString() })
+      .eq('id', id)
+    setUpdatingReport(null)
+    fetchReports()
+  }
+
+  // ── Users (Supabase) ──
+  async function fetchUsers() {
+    setUsersLoading(true)
+    const { data } = await supabase
+      .from('profiles')
+      .select('id,name,email,role,is_admin,is_blocked,created_at')
+      .order('created_at', { ascending: false })
+      .limit(100)
+    setDbUsers(data || [])
+    setUsersLoading(false)
+  }
+
+  async function handleToggleBlock(userId, currentBlocked) {
+    setBlockingUser(userId)
+    await supabase.from('profiles').update({ is_blocked: !currentBlocked }).eq('id', userId)
+    setBlockingUser(null)
+    fetchUsers()
+  }
+
+  async function handleDeleteUser(userId) {
+    if (!confirm('このユーザーを強制退会させますか？この操作は取り消せません。')) return
+    setDeletingUser(userId)
+    await supabase.rpc('admin_delete_user', { target_user_id: userId })
+    setDeletingUser(null)
+    fetchUsers()
+  }
+
+  // ── Email ──
+  function saveEmailSettings(settings) {
+    localStorage.setItem(EMAIL_SETTINGS_KEY, JSON.stringify(settings))
+    setEmailSettings(settings)
   }
 
   function handleCsvPaste(text) {
@@ -304,7 +405,20 @@ export default function Admin() {
     rejected: { text: '否認', bg: '#fce4ec', color: '#e05555' },
   }
 
-  if (!authed) {
+  // ── Loading state ──
+  if (authLoading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: '#9ca3af' }}>読み込み中...</p>
+      </div>
+    )
+  }
+
+  // ── Not user → redirected in useEffect ──
+  if (!user) return null
+
+  // ── User exists but not isAdmin → show password form ──
+  if (!isFullyAuthed) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fffe', padding: '24px' }}>
         <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 4px 24px rgba(42,157,143,0.12)', padding: '40px 32px', width: '100%', maxWidth: 360 }}>
@@ -313,7 +427,11 @@ export default function Admin() {
             <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#264653' }}>管理者ページ</div>
             <div style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: 6 }}>WanNyanCall24 Admin</div>
           </div>
-          <form onSubmit={handleLogin}>
+          <form onSubmit={e => {
+            e.preventDefault()
+            if (pw === ADMIN_PASSWORD) { setAuthed(true); setPwError(false) }
+            else setPwError(true)
+          }}>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: 600, color: '#264653', marginBottom: 6 }}>パスワード</label>
               <input
@@ -333,12 +451,8 @@ export default function Admin() {
     )
   }
 
-  const counts = {
-    all: applications.length,
-    pending: applications.filter(a => a.status === 'pending').length,
-    approved: applications.filter(a => a.status === 'approved').length,
-    rejected: applications.filter(a => a.status === 'rejected').length,
-  }
+  // ── Stats ──
+  const pendingReportsCount = dbReports.filter(r => r.status === 'pending').length
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fffe', padding: '20px 16px 40px' }}>
@@ -346,7 +460,9 @@ export default function Admin() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#264653' }}>🐾 管理者ダッシュボード</div>
-          <div style={{ fontSize: '0.82rem', color: '#6b7280', marginTop: 2 }}>獣医師登録審査</div>
+          <div style={{ fontSize: '0.82rem', color: '#6b7280', marginTop: 2 }}>
+            {isAdmin ? 'Supabase管理者' : 'パスワード認証'}
+          </div>
         </div>
         <button onClick={() => { setAuthed(false); setPw('') }} style={{ background: 'none', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '6px 14px', fontSize: '0.85rem', color: '#6b7280', cursor: 'pointer' }}>
           ログアウト
@@ -356,10 +472,10 @@ export default function Admin() {
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
         {[
-          { label: '申請全件', count: counts.all, color: '#2a9d8f' },
-          { label: '審査中', count: counts.pending, color: '#f59e0b' },
-          { label: '通報', count: reports.filter(r => r.status === 'pending').length, color: '#e05555' },
-          { label: '停止中', count: banned.length, color: '#6b7280' },
+          { label: '申請全件', count: applications.length, color: '#2a9d8f' },
+          { label: '審査中', count: applications.filter(a => a.status === 'pending').length, color: '#f59e0b' },
+          { label: '通報', count: pendingReportsCount, color: '#e05555' },
+          { label: 'ユーザー', count: dbUsers.length, color: '#6b7280' },
         ].map(s => (
           <div key={s.label} style={{ background: '#fff', borderRadius: 12, padding: '12px 8px', textAlign: 'center', boxShadow: '0 2px 8px rgba(42,157,143,0.08)' }}>
             <div style={{ fontSize: '1.5rem', fontWeight: 700, color: s.color }}>{s.count}</div>
@@ -372,7 +488,8 @@ export default function Admin() {
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid #e5e7eb', overflowX: 'auto' }}>
         {[
           { key: 'applications', label: '獣医師審査' },
-          { key: 'reports', label: `通報${reports.filter(r => r.status === 'pending').length > 0 ? ` (${reports.filter(r => r.status === 'pending').length})` : ''}` },
+          { key: 'chats', label: 'チャット一覧' },
+          { key: 'reports', label: `通報${pendingReportsCount > 0 ? ` (${pendingReportsCount})` : ''}` },
           { key: 'users', label: 'ユーザー管理' },
           { key: 'email', label: '📧 営業メール' },
         ].map(t => (
@@ -387,10 +504,297 @@ export default function Admin() {
 
       {/* Refresh */}
       {activeTab !== 'email' && (
-        <button onClick={() => { loadApplications(); setReports(loadReports()); setBanned(loadBanned()) }}
+        <button onClick={() => {
+          loadApplications()
+          if (activeTab === 'chats') fetchChats()
+          if (activeTab === 'reports') fetchReports()
+          if (activeTab === 'users') fetchUsers()
+        }}
           style={{ background: 'none', border: '1.5px solid #2a9d8f', borderRadius: 8, padding: '6px 14px', fontSize: '0.85rem', color: '#2a9d8f', cursor: 'pointer', marginBottom: 16 }}>
           ↻ 更新
         </button>
+      )}
+
+      {/* ══════════════════════════════════════════
+          獣医師審査タブ
+      ══════════════════════════════════════════ */}
+      {activeTab === 'applications' && (applications.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#6b7280' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
+          <div>申請はまだありません</div>
+          <div style={{ fontSize: '0.82rem', marginTop: 6 }}>獣医師が登録申請すると、ここに表示されます</div>
+        </div>
+      ) : (
+        <div>
+          {applications.map(app => {
+            const s = statusLabel[app.status] || statusLabel.pending
+            return (
+              <div key={app.key} style={{ background: '#fff', borderRadius: 14, boxShadow: '0 2px 12px rgba(42,157,143,0.08)', marginBottom: 12, overflow: 'hidden' }}>
+                <div style={{ padding: '16px 20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <div style={{ fontWeight: 700, fontSize: '1rem', color: '#264653' }}>
+                      {app.lastName || '—'} {app.firstName || ''}
+                    </div>
+                    <span style={{ background: s.bg, color: s.color, borderRadius: 50, padding: '4px 12px', fontSize: '0.78rem', fontWeight: 700 }}>{s.text}</span>
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#6b7280', display: 'grid', gap: 4 }}>
+                    <div>📧 {app.email || '—'}</div>
+                    <div>📞 {app.phone || '—'}</div>
+                    <div>🏥 {app.workplace || '—'}</div>
+                    <div>📅 申請日: {app.submittedAt ? new Date(app.submittedAt).toLocaleDateString('ja-JP') : '—'}</div>
+                    {app.reviewedAt && <div>✅ 審査日: {new Date(app.reviewedAt).toLocaleDateString('ja-JP')}</div>}
+                  </div>
+                  <button
+                    onClick={() => setSelected(selected?.key === app.key ? null : app)}
+                    style={{ marginTop: 12, background: 'none', border: '1px solid #e5e7eb', borderRadius: 8, padding: '6px 14px', fontSize: '0.82rem', color: '#6b7280', cursor: 'pointer', width: '100%' }}
+                  >
+                    {selected?.key === app.key ? '▲ 詳細を閉じる' : '▼ 詳細を見る'}
+                  </button>
+                </div>
+                {selected?.key === app.key && (
+                  <div style={{ borderTop: '1px solid #e5e7eb', padding: '16px 20px', background: '#fafafa' }}>
+                    {app.licenseImage && (
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#264653', marginBottom: 8 }}>獣医師免許証</div>
+                        <img src={app.licenseImage} alt="免許証" style={{ width: '100%', borderRadius: 10, border: '1px solid #e5e7eb', maxHeight: 260, objectFit: 'contain', background: '#fff' }} />
+                      </div>
+                    )}
+                    {app.career && (
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#264653', marginBottom: 6 }}>経歴</div>
+                        <div style={{ fontSize: '0.85rem', color: '#374151', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: '10px 12px', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{app.career}</div>
+                      </div>
+                    )}
+                    {app.specialties && (
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#264653', marginBottom: 6 }}>専門分野</div>
+                        <div style={{ fontSize: '0.85rem', color: '#374151' }}>{app.specialties}</div>
+                      </div>
+                    )}
+                    {app.licenseNumber && (
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#264653', marginBottom: 4 }}>免許番号</div>
+                        <div style={{ fontSize: '0.85rem', color: '#374151' }}>{app.licenseNumber}</div>
+                      </div>
+                    )}
+                    {app.status === 'pending' && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8 }}>
+                        <button onClick={() => updateStatus(app.key, 'approved')} style={{ background: '#22c55e', color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer' }}>✓ 承認</button>
+                        <button onClick={() => updateStatus(app.key, 'rejected')} style={{ background: '#e05555', color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer' }}>✗ 否認</button>
+                      </div>
+                    )}
+                    {app.status === 'approved' && (
+                      <button onClick={() => updateStatus(app.key, 'rejected')} style={{ background: '#e05555', color: '#fff', border: 'none', borderRadius: 10, padding: '10px', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer', width: '100%' }}>承認を取り消す</button>
+                    )}
+                    {app.status === 'rejected' && (
+                      <button onClick={() => updateStatus(app.key, 'approved')} style={{ background: '#22c55e', color: '#fff', border: 'none', borderRadius: 10, padding: '10px', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer', width: '100%' }}>承認に変更する</button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      ))}
+
+      {/* ══════════════════════════════════════════
+          チャット一覧タブ
+      ══════════════════════════════════════════ */}
+      {activeTab === 'chats' && (
+        <div>
+          {chatLoading ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9ca3af' }}>読み込み中...</div>
+          ) : chatRooms.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9ca3af' }}>
+              <div style={{ fontSize: '3rem', marginBottom: 12 }}>💬</div>
+              <div>チャットルームはありません</div>
+            </div>
+          ) : (
+            chatRooms.map(room => {
+              const isExpanded = expandedRoom === room.id
+              const msgs = roomMessages[room.id] || []
+              const statusColors = {
+                active: { bg: '#e8f6f5', color: '#2a9d8f', label: '進行中' },
+                completed: { bg: '#f3f4f6', color: '#6b7280', label: '完了' },
+                pending: { bg: '#fff8e1', color: '#f59e0b', label: '待機中' },
+              }
+              const sc = statusColors[room.status] || statusColors.pending
+              return (
+                <div key={room.id} style={{ background: '#fff', borderRadius: 14, boxShadow: '0 2px 12px rgba(42,157,143,0.08)', marginBottom: 12, overflow: 'hidden' }}>
+                  <div style={{ padding: '14px 18px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#264653' }}>
+                        {room.vets?.name || '獣医師'} ↔ {room.profiles?.name || '飼い主'}
+                      </div>
+                      <span style={{ background: sc.bg, color: sc.color, padding: '3px 10px', borderRadius: 50, fontSize: '0.72rem', fontWeight: 700, flexShrink: 0 }}>{sc.label}</span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginBottom: 10 }}>
+                      開始: {new Date(room.created_at).toLocaleString('ja-JP')}
+                      {room.total_amount > 0 && ` / ¥${room.total_amount.toLocaleString()}`}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        onClick={async () => {
+                          if (!isExpanded) await fetchRoomMessages(room.id)
+                          setExpandedRoom(isExpanded ? null : room.id)
+                        }}
+                        style={{ background: '#e8f6f5', color: '#2a9d8f', border: 'none', borderRadius: 8, padding: '7px 12px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}
+                      >{isExpanded ? '▲ 閉じる' : '▼ メッセージ確認'}</button>
+                      {room.status === 'active' && (
+                        <button
+                          onClick={() => handleForceComplete(room.id)}
+                          disabled={forceCompleting === room.id}
+                          style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 12px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', opacity: forceCompleting === room.id ? 0.7 : 1 }}
+                        >{forceCompleting === room.id ? '処理中...' : '強制終了'}</button>
+                      )}
+                    </div>
+                  </div>
+                  {isExpanded && (
+                    <div style={{ borderTop: '1px solid #f3f4f6', padding: '12px 18px', background: '#f9fafb', maxHeight: 300, overflowY: 'auto' }}>
+                      {msgs.length === 0 ? (
+                        <div style={{ color: '#9ca3af', fontSize: '0.82rem', textAlign: 'center' }}>メッセージなし</div>
+                      ) : (
+                        msgs.map(m => (
+                          <div key={m.id} style={{ marginBottom: 8 }}>
+                            <span style={{ fontSize: '0.7rem', color: '#9ca3af', marginRight: 6 }}>
+                              {m.sender_role === 'vet' ? '獣医師' : '飼い主'} {new Date(m.created_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            <span style={{ fontSize: '0.85rem', color: '#374151' }}>{m.content}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })
+          )}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════
+          通報管理タブ
+      ══════════════════════════════════════════ */}
+      {activeTab === 'reports' && (
+        <div>
+          {reportsLoading ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9ca3af' }}>読み込み中...</div>
+          ) : dbReports.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9ca3af' }}>
+              <div style={{ fontSize: '3rem', marginBottom: 12 }}>📭</div>
+              <div>通報はありません</div>
+            </div>
+          ) : (
+            dbReports.map(r => {
+              const isPending = r.status === 'pending'
+              const statusInfo = {
+                pending: { bg: '#fee2e2', color: '#e05555', label: '未対応' },
+                resolved: { bg: '#e8f6f5', color: '#2a9d8f', label: '対応済み' },
+                dismissed: { bg: '#f3f4f6', color: '#6b7280', label: '却下' },
+              }
+              const si = statusInfo[r.status] || statusInfo.pending
+              return (
+                <div key={r.id} style={{ background: '#fff', borderRadius: 14, boxShadow: '0 2px 12px rgba(42,157,143,0.08)', marginBottom: 12, padding: '16px 20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#264653' }}>
+                      🚨 {r.target_name}（{r.target_type === 'vet' ? '獣医師' : '飼い主'}）
+                    </div>
+                    <span style={{ background: si.bg, color: si.color, padding: '3px 10px', borderRadius: 50, fontSize: '0.72rem', fontWeight: 700, flexShrink: 0 }}>{si.label}</span>
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#374151', marginBottom: 4 }}>
+                    <strong>理由：</strong>{r.reason}
+                  </div>
+                  {r.detail && (
+                    <div style={{ fontSize: '0.82rem', color: '#6b7280', background: '#f9fafb', borderRadius: 8, padding: '8px 10px', marginBottom: 8 }}>
+                      {r.detail}
+                    </div>
+                  )}
+                  <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: isPending ? 10 : 0 }}>
+                    {new Date(r.created_at).toLocaleString('ja-JP')}
+                  </div>
+                  {isPending && (
+                    <div>
+                      <textarea
+                        placeholder="管理者メモ（任意）"
+                        value={reportNote[r.id] || ''}
+                        onChange={e => setReportNote(prev => ({ ...prev, [r.id]: e.target.value }))}
+                        rows={2}
+                        style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '8px 10px', fontSize: '0.8rem', resize: 'none', boxSizing: 'border-box', marginBottom: 8 }}
+                      />
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        <button
+                          onClick={() => updateReportStatus(r.id, 'resolved')}
+                          disabled={updatingReport === r.id}
+                          style={{ background: '#e8f6f5', color: '#2a9d8f', border: 'none', borderRadius: 8, padding: '9px', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', opacity: updatingReport === r.id ? 0.7 : 1 }}
+                        >対応済みにする</button>
+                        <button
+                          onClick={() => updateReportStatus(r.id, 'dismissed')}
+                          disabled={updatingReport === r.id}
+                          style={{ background: '#f3f4f6', color: '#6b7280', border: 'none', borderRadius: 8, padding: '9px', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', opacity: updatingReport === r.id ? 0.7 : 1 }}
+                        >却下する</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })
+          )}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════
+          ユーザー管理タブ
+      ══════════════════════════════════════════ */}
+      {activeTab === 'users' && (
+        <div>
+          {usersLoading ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9ca3af' }}>読み込み中...</div>
+          ) : dbUsers.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9ca3af' }}>
+              <div style={{ fontSize: '3rem', marginBottom: 12 }}>👥</div>
+              <div>ユーザーはいません</div>
+            </div>
+          ) : (
+            dbUsers.map(u => (
+              <div key={u.id} style={{ background: '#fff', borderRadius: 14, boxShadow: '0 2px 12px rgba(42,157,143,0.08)', marginBottom: 10, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#264653' }}>
+                      {u.name || '(名前なし)'}
+                    </div>
+                    {u.is_admin && <span style={{ background: '#fef3c7', color: '#d97706', padding: '2px 8px', borderRadius: 50, fontSize: '0.7rem', fontWeight: 700 }}>管理者</span>}
+                    {u.is_blocked && <span style={{ background: '#fee2e2', color: '#e05555', padding: '2px 8px', borderRadius: 50, fontSize: '0.7rem', fontWeight: 700 }}>ブロック中</span>}
+                    <span style={{ background: '#f3f4f6', color: '#6b7280', padding: '2px 8px', borderRadius: 50, fontSize: '0.7rem' }}>{u.role || 'user'}</span>
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: '#6b7280' }}>
+                    {u.email && <div>📧 {u.email}</div>}
+                    <div>登録: {new Date(u.created_at).toLocaleDateString('ja-JP')}</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+                  <button
+                    onClick={() => handleToggleBlock(u.id, u.is_blocked)}
+                    disabled={blockingUser === u.id}
+                    style={{
+                      background: u.is_blocked ? '#e8f6f5' : '#fee2e2',
+                      color: u.is_blocked ? '#2a9d8f' : '#e05555',
+                      border: 'none', borderRadius: 8, padding: '6px 10px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
+                      opacity: blockingUser === u.id ? 0.7 : 1,
+                    }}
+                  >{blockingUser === u.id ? '...' : u.is_blocked ? '解除' : 'ブロック'}</button>
+                  <button
+                    onClick={() => handleDeleteUser(u.id)}
+                    disabled={deletingUser === u.id || u.is_admin}
+                    style={{
+                      background: '#264653', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 10px', fontSize: '0.75rem', fontWeight: 600, cursor: u.is_admin ? 'not-allowed' : 'pointer',
+                      opacity: deletingUser === u.id || u.is_admin ? 0.5 : 1,
+                    }}
+                  >{deletingUser === u.id ? '...' : '強制退会'}</button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       )}
 
       {/* ══════════════════════════════════════════
@@ -735,197 +1139,6 @@ export default function Admin() {
           )}
         </div>
       )}
-
-      {/* Reports tab */}
-      {activeTab === 'reports' && (
-        <div>
-          {reports.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9ca3af' }}>
-              <div style={{ fontSize: '3rem', marginBottom: 12 }}>📭</div>
-              <div>通報はありません</div>
-            </div>
-          ) : (
-            reports.slice().reverse().map((r) => {
-              const isPending = r.status === 'pending'
-              return (
-                <div key={r.id} style={{ background: '#fff', borderRadius: 14, boxShadow: '0 2px 12px rgba(42,157,143,0.08)', marginBottom: 12, padding: '16px 20px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                    <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#264653' }}>
-                      🚨 {r.targetName}（{r.targetType === 'vet' ? '獣医師' : '飼い主'}）
-                    </div>
-                    <span style={{
-                      background: isPending ? '#fee2e2' : '#e8f6f5',
-                      color: isPending ? '#e05555' : '#2a9d8f',
-                      padding: '3px 10px', borderRadius: 50, fontSize: '0.72rem', fontWeight: 700, flexShrink: 0
-                    }}>{isPending ? '未対応' : '対応済み'}</span>
-                  </div>
-                  <div style={{ fontSize: '0.85rem', color: '#374151', marginBottom: 4 }}>
-                    <strong>理由：</strong>{r.reason}
-                  </div>
-                  {r.detail && (
-                    <div style={{ fontSize: '0.82rem', color: '#6b7280', background: '#f9fafb', borderRadius: 8, padding: '8px 10px', marginBottom: 8 }}>
-                      {r.detail}
-                    </div>
-                  )}
-                  <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: isPending ? 10 : 0 }}>
-                    {new Date(r.timestamp).toLocaleString('ja-JP')}
-                  </div>
-                  {isPending && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                      <button
-                        onClick={() => {
-                          const updated = reports.map(rep => rep.id === r.id ? { ...rep, status: 'reviewed' } : rep)
-                          localStorage.setItem(REPORTS_KEY, JSON.stringify(updated))
-                          setReports(updated)
-                        }}
-                        style={{ background: '#e8f6f5', color: '#2a9d8f', border: 'none', borderRadius: 8, padding: '9px', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' }}
-                      >対応済みにする</button>
-                      <button
-                        onClick={() => { setBanTarget(r.targetName); setActiveTab('users') }}
-                        style={{ background: '#264653', color: '#fff', border: 'none', borderRadius: 8, padding: '9px', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' }}
-                      >ユーザー停止へ</button>
-                    </div>
-                  )}
-                </div>
-              )
-            })
-          )}
-        </div>
-      )}
-
-      {/* Users tab */}
-      {activeTab === 'users' && (
-        <div>
-          <div style={{ background: '#fff', borderRadius: 14, boxShadow: '0 2px 12px rgba(42,157,143,0.08)', padding: '16px 20px', marginBottom: 16 }}>
-            <h3 style={{ fontWeight: 700, fontSize: '0.95rem', color: '#264653', marginBottom: 12 }}>⛔ ユーザーを強制停止</h3>
-            <div className="form-group">
-              <label className="form-label">ユーザー名・メールアドレス</label>
-              <input className="form-input" type="text" placeholder="例：田中 健一 / vet@example.com"
-                value={banTarget} onChange={e => setBanTarget(e.target.value)} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">停止理由</label>
-              <input className="form-input" type="text" placeholder="例：利用規約違反・通報対応"
-                value={banReason} onChange={e => setBanReason(e.target.value)} />
-            </div>
-            <button
-              onClick={() => {
-                if (!banTarget.trim()) return
-                const entry = { id: Date.now(), userName: banTarget.trim(), reason: banReason.trim() || '—', bannedAt: new Date().toISOString() }
-                const updated = [...loadBanned(), entry]
-                localStorage.setItem(BANNED_KEY, JSON.stringify(updated))
-                setBanned(updated)
-                setBanTarget('')
-                setBanReason('')
-              }}
-              style={{ background: '#264653', color: '#fff', border: 'none', borderRadius: 10, padding: '11px', width: '100%', fontWeight: 700, cursor: 'pointer' }}
-            >停止する</button>
-          </div>
-          <h3 style={{ fontWeight: 700, fontSize: '0.95rem', color: '#264653', marginBottom: 10 }}>停止中ユーザー一覧</h3>
-          {banned.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '30px 20px', color: '#9ca3af', fontSize: '0.85rem' }}>停止中のユーザーはいません</div>
-          ) : (
-            banned.slice().reverse().map(b => (
-              <div key={b.id} style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', padding: '14px 16px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#264653' }}>⛔ {b.userName}</div>
-                  <div style={{ fontSize: '0.78rem', color: '#6b7280', marginTop: 2 }}>理由：{b.reason}</div>
-                  <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>{new Date(b.bannedAt).toLocaleString('ja-JP')}</div>
-                </div>
-                <button
-                  onClick={() => {
-                    const updated = banned.filter(u => u.id !== b.id)
-                    localStorage.setItem(BANNED_KEY, JSON.stringify(updated))
-                    setBanned(updated)
-                  }}
-                  style={{ background: 'none', border: '1px solid #e5e7eb', borderRadius: 8, padding: '5px 10px', fontSize: '0.75rem', color: '#6b7280', cursor: 'pointer', flexShrink: 0 }}
-                >停止解除</button>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Application list */}
-      {activeTab === 'applications' && (applications.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#6b7280' }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
-          <div>申請はまだありません</div>
-          <div style={{ fontSize: '0.82rem', marginTop: 6 }}>獣医師が登録申請すると、ここに表示されます</div>
-        </div>
-      ) : (
-        <div>
-          {applications.map(app => {
-            const s = statusLabel[app.status] || statusLabel.pending
-            return (
-              <div key={app.key} style={{ background: '#fff', borderRadius: 14, boxShadow: '0 2px 12px rgba(42,157,143,0.08)', marginBottom: 12, overflow: 'hidden' }}>
-                <div style={{ padding: '16px 20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <div style={{ fontWeight: 700, fontSize: '1rem', color: '#264653' }}>
-                      {app.lastName || '—'} {app.firstName || ''}
-                    </div>
-                    <span style={{ background: s.bg, color: s.color, borderRadius: 50, padding: '4px 12px', fontSize: '0.78rem', fontWeight: 700 }}>{s.text}</span>
-                  </div>
-                  <div style={{ fontSize: '0.85rem', color: '#6b7280', display: 'grid', gap: 4 }}>
-                    <div>📧 {app.email || '—'}</div>
-                    <div>📞 {app.phone || '—'}</div>
-                    <div>🏥 {app.workplace || '—'}</div>
-                    <div>📅 申請日: {app.submittedAt ? new Date(app.submittedAt).toLocaleDateString('ja-JP') : '—'}</div>
-                    {app.reviewedAt && <div>✅ 審査日: {new Date(app.reviewedAt).toLocaleDateString('ja-JP')}</div>}
-                  </div>
-                  <button
-                    onClick={() => setSelected(selected?.key === app.key ? null : app)}
-                    style={{ marginTop: 12, background: 'none', border: '1px solid #e5e7eb', borderRadius: 8, padding: '6px 14px', fontSize: '0.82rem', color: '#6b7280', cursor: 'pointer', width: '100%' }}
-                  >
-                    {selected?.key === app.key ? '▲ 詳細を閉じる' : '▼ 詳細を見る'}
-                  </button>
-                </div>
-
-                {selected?.key === app.key && (
-                  <div style={{ borderTop: '1px solid #e5e7eb', padding: '16px 20px', background: '#fafafa' }}>
-                    {app.licenseImage && (
-                      <div style={{ marginBottom: 16 }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#264653', marginBottom: 8 }}>獣医師免許証</div>
-                        <img src={app.licenseImage} alt="免許証" style={{ width: '100%', borderRadius: 10, border: '1px solid #e5e7eb', maxHeight: 260, objectFit: 'contain', background: '#fff' }} />
-                      </div>
-                    )}
-                    {app.career && (
-                      <div style={{ marginBottom: 16 }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#264653', marginBottom: 6 }}>経歴</div>
-                        <div style={{ fontSize: '0.85rem', color: '#374151', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: '10px 12px', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{app.career}</div>
-                      </div>
-                    )}
-                    {app.specialties && (
-                      <div style={{ marginBottom: 16 }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#264653', marginBottom: 6 }}>専門分野</div>
-                        <div style={{ fontSize: '0.85rem', color: '#374151' }}>{app.specialties}</div>
-                      </div>
-                    )}
-                    {app.licenseNumber && (
-                      <div style={{ marginBottom: 16 }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#264653', marginBottom: 4 }}>免許番号</div>
-                        <div style={{ fontSize: '0.85rem', color: '#374151' }}>{app.licenseNumber}</div>
-                      </div>
-                    )}
-                    {app.status === 'pending' && (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8 }}>
-                        <button onClick={() => updateStatus(app.key, 'approved')} style={{ background: '#22c55e', color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer' }}>✓ 承認</button>
-                        <button onClick={() => updateStatus(app.key, 'rejected')} style={{ background: '#e05555', color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer' }}>✗ 否認</button>
-                      </div>
-                    )}
-                    {app.status === 'approved' && (
-                      <button onClick={() => updateStatus(app.key, 'rejected')} style={{ background: '#e05555', color: '#fff', border: 'none', borderRadius: 10, padding: '10px', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer', width: '100%' }}>承認を取り消す</button>
-                    )}
-                    {app.status === 'rejected' && (
-                      <button onClick={() => updateStatus(app.key, 'approved')} style={{ background: '#22c55e', color: '#fff', border: 'none', borderRadius: 10, padding: '10px', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer', width: '100%' }}>承認に変更する</button>
-                    )}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      ))}
     </div>
   )
 }

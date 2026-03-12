@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase, supabaseReady, queryWithRetry } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import VideoCall from '../components/VideoCall'
+import ReportModal from '../components/ReportModal'
+import BlockModal from '../components/BlockModal'
 
 export default function ChatRoom() {
   const { roomId } = useParams()
@@ -19,6 +21,9 @@ export default function ChatRoom() {
   const [elapsedSec, setElapsedSec] = useState(0)
   const [uploading, setUploading] = useState(false)
   const [showVideo, setShowVideo] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
+  const [showReport, setShowReport] = useState(false)
+  const [showBlock, setShowBlock] = useState(false)
   const messagesEndRef = useRef(null)
   const fileInputRef = useRef(null)
   const timerRef = useRef(null)
@@ -271,6 +276,21 @@ export default function ChatRoom() {
             </svg>
           </button>
         )}
+        {/* 通報・ブロックメニュー */}
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <button
+            onClick={() => setShowMenu(prev => !prev)}
+            style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: '50%', width: 38, height: 38, cursor: 'pointer', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >⋮</button>
+          {showMenu && (
+            <div style={{ position: 'absolute', top: 44, right: 0, background: '#fff', borderRadius: 12, boxShadow: '0 4px 20px rgba(0,0,0,0.15)', minWidth: 160, zIndex: 100, overflow: 'hidden' }}>
+              <button onClick={() => { setShowMenu(false); setShowReport(true) }}
+                style={{ display: 'block', width: '100%', padding: '13px 16px', background: 'none', border: 'none', textAlign: 'left', fontSize: '0.88rem', fontWeight: 600, color: '#dc2626', cursor: 'pointer' }}>🚨 通報する</button>
+              <button onClick={() => { setShowMenu(false); setShowBlock(true) }}
+                style={{ display: 'block', width: '100%', padding: '13px 16px', background: 'none', border: 'none', textAlign: 'left', fontSize: '0.88rem', fontWeight: 600, color: '#264653', cursor: 'pointer', borderTop: '1px solid #f3f4f6' }}>🚫 ブロックする</button>
+            </div>
+          )}
+        </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
           {isCompleted ? (
             <span style={{ fontSize: '0.78rem', fontWeight: 700, background: 'rgba(255,255,255,0.2)', padding: '4px 10px', borderRadius: 50 }}>完了</span>
@@ -468,6 +488,27 @@ export default function ChatRoom() {
           roomId={roomId}
           userId={user.id}
           onClose={() => setShowVideo(false)}
+        />
+      )}
+
+      {/* 通報モーダル */}
+      {showReport && (
+        <ReportModal
+          targetId={isVetUser ? room.user_id : (room.vets?.auth_id || room.vet_id)}
+          targetName={isVetUser ? '飼い主' : (room.vets?.name || '獣医師')}
+          targetType={isVetUser ? 'user' : 'vet'}
+          consultationId={room.consultation_id}
+          onClose={() => setShowReport(false)}
+        />
+      )}
+
+      {/* ブロックモーダル */}
+      {showBlock && (
+        <BlockModal
+          targetId={isVetUser ? room.user_id : (room.vets?.auth_id || room.vet_id)}
+          targetName={isVetUser ? '飼い主' : (room.vets?.name || '獣医師')}
+          targetType={isVetUser ? 'user' : 'vet'}
+          onClose={() => setShowBlock(false)}
         />
       )}
 

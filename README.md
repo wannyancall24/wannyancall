@@ -88,6 +88,28 @@ as $$
 $$;
 ```
 
+### 3. 管理者機能（admin_features.sql）
+
+Supabase の SQL Editor で `supabase/migrations/admin_features.sql` の内容を実行してください。
+
+このマイグレーションは以下を追加します：
+
+- `profiles` テーブルに `is_admin boolean DEFAULT false` カラム追加
+- `profiles` テーブルに `is_blocked boolean DEFAULT false` カラム追加
+- `reports` テーブル（通報管理）の作成・RLS設定
+- `blocked_users` テーブル（ブロック管理）の作成・RLS設定
+- `admin_delete_user(target_user_id uuid)` RPC関数（管理者によるユーザー強制削除）
+- `admin_force_complete(room_id uuid)` RPC関数（管理者によるチャット強制終了）
+
+実行方法：
+
+1. Supabase ダッシュボード → SQL Editor を開く
+2. `supabase/migrations/admin_features.sql` の内容をすべてコピー＆ペーストして実行
+3. 管理者にするユーザーの `profiles.is_admin` を `true` に設定:
+   ```sql
+   UPDATE profiles SET is_admin = true WHERE email = 'your-admin@example.com';
+   ```
+
 ---
 
 ## Google Search Console への登録手順
