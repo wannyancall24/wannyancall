@@ -230,7 +230,7 @@ export default function VetDashboard() {
       if (selectedAnimals.length === 0) e.animals = '1つ以上選択してください'
     }
     if (step === 2) {
-      if (!licenseImage) e.licenseImage = '免許証画像をアップロードしてください'
+      if (!licenseImage) e.licenseImage = '獣医師免許証画像をアップロードしてください'
     }
     if (step === 3) {
       if (!form.hospital) e.hospital = '必須です'
@@ -322,7 +322,7 @@ export default function VetDashboard() {
         {application.licenseImage && (
           <div style={{ marginTop: 12 }}>
             <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: 6 }}>獣医師免許証</div>
-            <img src={application.licenseImage} alt="免許証" style={{ width: '100%', borderRadius: 8, border: '1px solid #e5e7eb' }} />
+            <img src={application.licenseImage} alt="獣医師免許証" style={{ width: '100%', borderRadius: 8, border: '1px solid #e5e7eb' }} />
           </div>
         )}
       </div>
@@ -402,7 +402,7 @@ export default function VetDashboard() {
         <div className="card">
           <h3 style={{ fontWeight: 700, marginBottom: 8 }}>獣医師免許証のアップロード</h3>
           <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: 16, lineHeight: 1.6 }}>
-            獣医師免許証の写真またはスキャン画像をアップロードしてください。<br />ファイル形式：JPG・PNG・PDF
+            獣医師免許証を撮影またはスキャンしてアップロードしてください。<br />ファイル形式：JPG・PNG・PDF
           </p>
           <input ref={fileInputRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }} onChange={handleImageUpload} />
           <div onClick={() => fileInputRef.current.click()} style={{
@@ -412,7 +412,7 @@ export default function VetDashboard() {
           }}>
             {licenseImage ? (
               <>
-                <img src={licenseImage} alt="免許証プレビュー" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8, marginBottom: 8 }} />
+                <img src={licenseImage} alt="獣医師免許証プレビュー" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8, marginBottom: 8 }} />
                 <p style={{ fontSize: '0.82rem', color: '#2a9d8f', fontWeight: 600 }}>✅ {licenseFileName}</p>
                 <p style={{ fontSize: '0.75rem', color: '#9ca3af' }}>タップして変更</p>
               </>
@@ -490,7 +490,7 @@ export default function VetDashboard() {
           </div>
           <div className="card">
             <h3 style={{ fontWeight: 700, marginBottom: 12, fontSize: '0.95rem' }}>獣医師免許証</h3>
-            {licenseImage && <img src={licenseImage} alt="免許証" style={{ width: '100%', borderRadius: 8, border: '1px solid #e5e7eb' }} />}
+            {licenseImage && <img src={licenseImage} alt="獣医師免許証" style={{ width: '100%', borderRadius: 8, border: '1px solid #e5e7eb' }} />}
           </div>
           <div className="card">
             <h3 style={{ fontWeight: 700, marginBottom: 10, fontSize: '0.95rem' }}>勤務先・経歴</h3>
@@ -862,7 +862,7 @@ export default function VetDashboard() {
               {[
                 { icon: '🏠', title: '完全在宅', desc: '自宅から相談対応できます' },
                 { icon: '⏰', title: '自由なシフト', desc: '空き時間を有効活用' },
-                { icon: '💳', title: '毎月末払い', desc: '銀行振込で確実にお支払い' },
+                { icon: '💳', title: '月2回払い', desc: '15日締め22日払い・末日締め翌月7日払い' },
                 { icon: '📈', title: '評価UP', desc: 'レビューで指名数が増加' },
               ].map((b, i, arr) => (
                 <div key={b.title} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: i < arr.length - 1 ? '1px solid #e5e7eb' : 'none', alignItems: 'flex-start' }}>
