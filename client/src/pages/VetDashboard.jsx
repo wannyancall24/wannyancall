@@ -789,7 +789,7 @@ export default function VetDashboard() {
               <div>
                 <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#2a9d8f', marginBottom: 2 }}>振込タイミング</div>
                 <div style={{ fontSize: '0.85rem', color: '#264653', lineHeight: 1.6 }}>
-                  毎月1日・15日締め、翌7日に登録口座へ振込されます。
+                  月2回払い：15日締め22日払い・末日締め翌月7日払い（銀行振込）
                 </div>
               </div>
             </div>
