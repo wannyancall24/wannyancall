@@ -13,9 +13,9 @@ function calcExpectedTotal({ animalType, duration, hour, nominated, hasPlan }) {
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
-  const { amount, paymentMethodId, customerId, animalType, duration, hour, nominated, hasPlan } = req.body
+  const { amount, animalType, duration, hour, nominated, hasPlan } = req.body
 
-  // サーバー側で金額検証（animalType/duration/hour が送信された場合のみ）
+  // サーバー側で金額検証
   if (animalType != null && duration != null && hour != null) {
     const expected = calcExpectedTotal({ animalType, duration, hour, nominated: !!nominated, hasPlan: !!hasPlan })
     if (Math.abs(amount - expected) > 100) {
@@ -24,19 +24,17 @@ module.exports = async (req, res) => {
   }
 
   try {
+    // capture_method: manual で仮押さえ用 PaymentIntent を作成
+    // confirm はブラウザ側（Stripe Elements）で行う
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
       currency: 'jpy',
-      payment_method: paymentMethodId,
-      customer: customerId,
       capture_method: 'manual',
-      confirm: true,
       automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
     })
     res.json({
-      paymentIntentId: paymentIntent.id,
       clientSecret: paymentIntent.client_secret,
-      status: paymentIntent.status,
+      paymentIntentId: paymentIntent.id,
     })
   } catch (err) {
     res.status(500).json({ error: err.message })

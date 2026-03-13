@@ -1,9 +1,24 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getStoredCard, getBrandLabel } from '../lib/stripeCard'
+import { loadStripe } from '@stripe/stripe-js'
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { supabase, supabaseReady } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { calcTotal } from '../lib/pricing'
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
+
+const CARD_ELEMENT_OPTIONS = {
+  style: {
+    base: {
+      fontSize: '16px',
+      color: '#264653',
+      fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+      '::placeholder': { color: '#9ca3af' },
+    },
+    invalid: { color: '#e05555' },
+  },
+}
 
 const VETS = {
   1: { name: '田中 健一', specialty: '内科・皮膚科', photo: '👨‍⚕️', rating: 4.9 },
@@ -26,7 +41,7 @@ function StepBar({ step }) {
               width: 28, height: 28, borderRadius: '50%',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '0.75rem', fontWeight: 700,
-              background: step > i + 1 ? '#2a9d8f' : step === i + 1 ? '#2a9d8f' : '#e5e7eb',
+              background: step >= i + 1 ? '#2a9d8f' : '#e5e7eb',
               color: step >= i + 1 ? '#fff' : '#9ca3af',
             }}>
               {step > i + 1 ? '✓' : i + 1}
@@ -48,10 +63,13 @@ function formatElapsed(sec) {
   return `${m}:${s}`
 }
 
-export default function Booking() {
+function BookingInner() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const stripe = useStripe()
+  const elements = useElements()
+
   const fallbackVet = VETS[id] || VETS[1]
   const [vet, setVet] = useState(fallbackVet)
 
@@ -72,7 +90,6 @@ export default function Booking() {
         if (!data) return
         const available = data.available_animals || []
         setVet({ name: data.name, specialty: data.specialty, photo: data.photo || '👨‍⚕️', rating: data.rating, available_animals: available })
-        // 獣医師が対応している最初の動物種をデフォルト選択
         if (available.length > 0 && !available.includes(selectedAnimal)) {
           setSelectedAnimal(available[0])
         }
@@ -95,7 +112,6 @@ export default function Booking() {
   const [hasPlan, setHasPlan] = useState(false)
   const timerRef = useRef(null)
 
-  // ユーザーのプラン情報を取得
   useEffect(() => {
     if (!supabaseReady || !user) return
     supabase.from('profiles').select('plan').eq('id', user.id).single()
@@ -104,11 +120,9 @@ export default function Booking() {
       })
   }, [user])
 
-  const card = getStoredCard()
   const nowHour = new Date().getHours()
   const { base, ext, systemFee, nominationFee, timeFee, timeLabel, total } = calcTotal({ animalType, duration, hour: nowHour, nominated, hasPlan })
 
-  // 相談中タイマー
   useEffect(() => {
     if (step === 3) {
       timerRef.current = setInterval(() => setElapsedSec(s => s + 1), 1000)
@@ -117,32 +131,30 @@ export default function Booking() {
   }, [step])
 
   async function handleStartConsultation() {
-    if (!card) { setApiError('カードが登録されていません'); return }
+    if (!stripe || !elements) { setApiError('決済の初期化中です。しばらくお待ちください。'); return }
     if (!user) { setApiError('ログインが必要です'); return }
     setApiLoading(true)
     setApiError('')
     try {
-      // Stripe仮押さえ
+      // 1. サーバーで PaymentIntent 作成（clientSecret を取得）
       const res = await fetch('/api/stripe/create-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: total,
-          paymentMethodId: card.paymentMethodId,
-          customerId: card.customerId,
-          animalType,
-          duration,
-          hour: nowHour,
-          nominated,
-          hasPlan,
-        }),
+        body: JSON.stringify({ amount: total, animalType, duration, hour: nowHour, nominated, hasPlan }),
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
-      if (data.status !== 'requires_capture') throw new Error(`予期しないステータス: ${data.status}`)
-      setPaymentIntentId(data.paymentIntentId)
 
-      // consultationレコード作成
+      // 2. ブラウザ側で CardElement を使って仮押さえ確認
+      const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(data.clientSecret, {
+        payment_method: { card: elements.getElement(CardElement) },
+      })
+      if (confirmError) throw new Error(confirmError.message)
+      if (paymentIntent.status !== 'requires_capture') throw new Error(`予期しないステータス: ${paymentIntent.status}`)
+
+      setPaymentIntentId(paymentIntent.id)
+
+      // 3. consultationレコード作成
       let consultationId = null
       if (supabaseReady) {
         const vetReward = Math.round((base + ext + timeFee) * 0.5) + nominationFee
@@ -162,17 +174,16 @@ export default function Booking() {
         consultationId = consData?.id
       }
 
-      // チャットルーム作成
+      // 4. チャットルーム作成
       if (supabaseReady) {
         const { data: roomData, error: roomError } = await supabase.from('chat_rooms').insert({
           consultation_id: consultationId,
           user_id: user.id,
           vet_id: parseInt(id),
-          payment_intent_id: data.paymentIntentId,
+          payment_intent_id: paymentIntent.id,
           total_amount: total,
         }).select('id').single()
         if (roomError) throw new Error(`チャットルーム作成失敗: ${roomError.message}`)
-        // チャット画面に遷移
         navigate(`/chat/${roomData.id}`)
         return
       }
@@ -212,7 +223,6 @@ export default function Booking() {
         <div style={{ padding: 16 }}>
           <StepBar step={1} />
 
-          {/* Vet Info */}
           <div className="card" style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20 }}>
             <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#e8f6f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', flexShrink: 0 }}>{vet.photo}</div>
             <div>
@@ -222,7 +232,6 @@ export default function Booking() {
             </div>
           </div>
 
-          {/* ペット */}
           <div className="form-group">
             <label className="form-label">🐾 相談するペット</label>
             <select className="form-select" value={pet} onChange={e => setPet(e.target.value)}>
@@ -232,7 +241,6 @@ export default function Booking() {
             </select>
           </div>
 
-          {/* 動物種別 */}
           <div className="form-group">
             <label className="form-label">動物の種類</label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -258,7 +266,6 @@ export default function Booking() {
             </div>
           </div>
 
-          {/* 相談時間 */}
           <div className="form-group">
             <label className="form-label">⏱ 相談時間</label>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -281,7 +288,6 @@ export default function Booking() {
             </div>
           </div>
 
-          {/* 指名オプション */}
           <div className="form-group">
             <label className="form-label">⭐ 獣医師を指名する</label>
             <button
@@ -302,7 +308,6 @@ export default function Booking() {
             </div>
           </div>
 
-          {/* 症状 */}
           <div className="form-group">
             <label className="form-label">💬 相談内容・症状 <span style={{ color: '#e05555' }}>*</span></label>
             <textarea
@@ -316,7 +321,6 @@ export default function Booking() {
             {symptomsError && <div style={{ color: '#e05555', fontSize: '0.78rem', marginTop: 4 }}>{symptomsError}</div>}
           </div>
 
-          {/* 料金プレビュー */}
           <div className="card" style={{ background: '#e8f6f5', border: '1.5px solid #2a9d8f33', marginBottom: 20 }}>
             <h3 style={{ fontWeight: 700, marginBottom: 10, fontSize: '0.9rem', color: '#264653' }}>💴 料金内訳（予定）</h3>
             {[
@@ -356,7 +360,7 @@ export default function Booking() {
     )
   }
 
-  // ── Step 2: 確認 ──
+  // ── Step 2: 確認＋カード入力 ──
   if (step === 2) {
     return (
       <div className="page">
@@ -417,34 +421,16 @@ export default function Booking() {
             </ul>
           </div>
 
-          {/* カード確認 */}
-          {card ? (
-            <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 12, padding: '14px 16px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontSize: '1.5rem' }}>💳</span>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#264653' }}>{getBrandLabel(card.brand)} **** {card.last4}</div>
-                {card.expMonth && <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>有効期限 {String(card.expMonth).padStart(2, '0')}/{card.expYear}</div>}
-              </div>
-              <button
-                onClick={() => navigate('/mypage')}
-                style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: '0.78rem', color: '#2a9d8f', cursor: 'pointer', fontWeight: 600 }}
-              >
-                変更
-              </button>
+          {/* カード入力（Stripe Elements） */}
+          <div className="card" style={{ marginBottom: 14 }}>
+            <h3 style={{ fontWeight: 700, marginBottom: 12, fontSize: '0.95rem' }}>💳 カード情報を入力</h3>
+            <div style={{ border: '1.5px solid #d1d5db', borderRadius: 10, padding: '14px 12px', background: '#fff', marginBottom: 8 }}>
+              <CardElement options={CARD_ELEMENT_OPTIONS} />
             </div>
-          ) : (
-            <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 12, padding: '14px 16px', marginBottom: 14 }}>
-              <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#dc2626', marginBottom: 6 }}>💳 カードが登録されていません</div>
-              <p style={{ fontSize: '0.82rem', color: '#6b7280', marginBottom: 10 }}>相談を開始するには事前にカードを登録してください。</p>
-              <button
-                className="btn-primary"
-                style={{ background: '#2a9d8f', padding: '10px' }}
-                onClick={() => navigate('/mypage')}
-              >
-                マイページでカードを登録する →
-              </button>
+            <div style={{ fontSize: '0.75rem', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: 4 }}>
+              🔒 カード情報はStripeで安全に管理されます。当サービスには保存されません。
             </div>
-          )}
+          </div>
 
           {apiError && (
             <div style={{ background: '#fee2e2', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.85rem', color: '#dc2626', fontWeight: 600 }}>
@@ -454,8 +440,8 @@ export default function Booking() {
 
           <button
             className="btn-primary"
-            style={{ fontSize: '1.05rem', padding: '16px', marginBottom: 10, opacity: !card || apiLoading ? 0.5 : 1 }}
-            disabled={!card || apiLoading}
+            style={{ fontSize: '1.05rem', padding: '16px', marginBottom: 10, opacity: apiLoading ? 0.5 : 1 }}
+            disabled={apiLoading}
             onClick={handleStartConsultation}
           >
             {apiLoading ? '処理中...' : `🔒 相談を開始する（¥${total.toLocaleString()} 仮押さえ）`}
@@ -477,7 +463,6 @@ export default function Booking() {
         </div>
 
         <div style={{ padding: 16 }}>
-          {/* Vet info */}
           <div className="card" style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 14 }}>
             <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#e8f6f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.7rem', flexShrink: 0 }}>{vet.photo}</div>
             <div>
@@ -490,12 +475,10 @@ export default function Booking() {
             </span>
           </div>
 
-          {/* 仮押さえ中バナー */}
           <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 12, padding: '10px 14px', marginBottom: 14, fontSize: '0.82rem', color: '#92400e' }}>
             💳 ¥{total.toLocaleString()} を仮押さえ中。相談終了後に確定決済されます。
           </div>
 
-          {/* チャットエリア（プレースホルダー） */}
           <div className="card" style={{ minHeight: 280, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', background: '#f9fafb', marginBottom: 14 }}>
             <div style={{ textAlign: 'center', color: '#9ca3af', padding: '40px 20px', fontSize: '0.85rem' }}>
               <div style={{ fontSize: '2rem', marginBottom: 8 }}>💬</div>
@@ -545,7 +528,6 @@ export default function Booking() {
           { label: '獣医師', value: `${vet.name} 獣医師` },
           { label: '相談時間', value: `${duration}分（${formatElapsed(elapsedSec)}）` },
           { label: 'お支払い', value: `¥${total.toLocaleString()}（確定）` },
-          { label: 'カード', value: card ? `**** ${card.last4}` : '登録カード' },
         ].map((r, i, arr) => (
           <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < arr.length - 1 ? '1px solid #c8ece9' : 'none', fontSize: '0.88rem' }}>
             <span style={{ color: '#6b7280' }}>{r.label}</span>
@@ -556,5 +538,13 @@ export default function Booking() {
       <button className="btn-primary" onClick={() => navigate('/')}>ホームへ戻る</button>
       <button className="btn-secondary" style={{ marginTop: 10 }} onClick={() => navigate('/history')}>相談履歴を見る</button>
     </div>
+  )
+}
+
+export default function Booking() {
+  return (
+    <Elements stripe={stripePromise}>
+      <BookingInner />
+    </Elements>
   )
 }
