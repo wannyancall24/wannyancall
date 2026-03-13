@@ -123,6 +123,27 @@ export default function VetDashboard() {
   const [requests, setRequests] = useState(loadRequests)
   const [reportTarget, setReportTarget] = useState(null)
   const [blockTarget, setBlockTarget] = useState(null)
+
+  // パスワード変更
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [pwNew, setPwNew] = useState('')
+  const [pwConfirm, setPwConfirm] = useState('')
+  const [pwSaving, setPwSaving] = useState(false)
+  const [pwError, setPwError] = useState('')
+  const [pwSuccess, setPwSuccess] = useState(false)
+
+  const handlePasswordChange = async () => {
+    setPwError('')
+    if (pwNew.length < 8) { setPwError('パスワードは8文字以上で入力してください'); return }
+    if (pwNew !== pwConfirm) { setPwError('パスワードが一致しません'); return }
+    setPwSaving(true)
+    const { error } = await supabase.auth.updateUser({ password: pwNew })
+    setPwSaving(false)
+    if (error) { setPwError('変更に失敗しました: ' + error.message); return }
+    setPwSuccess(true)
+    setPwNew('')
+    setPwConfirm('')
+  }
   const [selectedMonthIdx, setSelectedMonthIdx] = useState(0)
   const [monthlyRewards, setMonthlyRewards] = useState([])
   const [rewardLoading, setRewardLoading] = useState(true)
@@ -840,7 +861,18 @@ export default function VetDashboard() {
 
         {activeTab === 'requests' && renderRequests()}
 
-        {activeTab === 'register' && (application ? renderApplicationStatus() : renderRegisterForm())}
+        {activeTab === 'register' && (
+          <>
+            {application ? renderApplicationStatus() : renderRegisterForm()}
+            <div className="card" style={{ marginTop: 16 }}>
+              <h3 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: 12 }}>🔑 パスワード変更</h3>
+              <button
+                onClick={() => { setShowPasswordModal(true); setPwNew(''); setPwConfirm(''); setPwError(''); setPwSuccess(false) }}
+                style={{ width: '100%', padding: '12px', borderRadius: 50, border: '1.5px solid #e5e7eb', background: '#fff', color: '#264653', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }}
+              >パスワードを変更する</button>
+            </div>
+          </>
+        )}
 
         {activeTab === 'shift' && (
           <>
@@ -888,6 +920,39 @@ export default function VetDashboard() {
           </>
         )}
       </div>
+
+      {showPasswordModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 24 }}>
+          <div style={{ background: '#fff', borderRadius: 20, padding: 24, width: '100%', maxWidth: 340 }}>
+            {pwSuccess ? (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>✅</div>
+                <h3 style={{ fontWeight: 800, marginBottom: 8 }}>変更完了</h3>
+                <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: 20 }}>パスワードを変更しました。</p>
+                <button className="btn-primary" onClick={() => setShowPasswordModal(false)}>閉じる</button>
+              </div>
+            ) : (
+              <>
+                <h3 style={{ fontWeight: 800, marginBottom: 4 }}>🔑 パスワード変更</h3>
+                <p style={{ fontSize: '0.82rem', color: '#9ca3af', marginBottom: 16 }}>新しいパスワードを入力してください（8文字以上）</p>
+                <div className="form-group">
+                  <label className="form-label">新しいパスワード</label>
+                  <input className="form-input" type="password" placeholder="8文字以上" value={pwNew} onChange={e => setPwNew(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">確認用パスワード</label>
+                  <input className="form-input" type="password" placeholder="もう一度入力" value={pwConfirm} onChange={e => setPwConfirm(e.target.value)} />
+                </div>
+                {pwError && <p style={{ color: '#ef4444', fontSize: '0.82rem', marginBottom: 12 }}>{pwError}</p>}
+                <button className="btn-primary" disabled={pwSaving} onClick={handlePasswordChange} style={{ marginBottom: 10, opacity: pwSaving ? 0.7 : 1 }}>
+                  {pwSaving ? '変更中...' : '変更する'}
+                </button>
+                <button className="btn-secondary" onClick={() => setShowPasswordModal(false)}>キャンセル</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {reportTarget && (
         <ReportModal
