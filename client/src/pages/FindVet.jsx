@@ -74,9 +74,7 @@ export default function FindVet() {
 
   const filtered = vets
     .filter(v => {
-      if (animal === '犬' && !v.available_animals?.includes('犬')) return false
-      if (animal === '猫' && !v.available_animals?.includes('猫')) return false
-      if (animal === '小動物' && !v.available_animals?.includes('小動物')) return false
+      if (animal !== '全て' && !v.available_animals?.includes(animal)) return false
       if (specialty !== 'すべて' && !v.specialty?.includes(specialty)) return false
       if (nightOnly && !v.night_ok) return false
       return true
@@ -95,6 +93,8 @@ export default function FindVet() {
             { key: '犬', label: '🐶犬' },
             { key: '猫', label: '🐱猫' },
             { key: '小動物', label: '🐹小動物' },
+            { key: '鳥', label: '🐦鳥' },
+            { key: 'エキゾチック', label: '🦎エキゾチック' },
           ].map(t => (
             <FilterChip key={t.key} active={animal === t.key} onClick={() => setAnimal(t.key)}>
               {t.label}

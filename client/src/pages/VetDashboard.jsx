@@ -148,11 +148,13 @@ export default function VetDashboard() {
   const [monthlyRewards, setMonthlyRewards] = useState([])
   const [rewardLoading, setRewardLoading] = useState(true)
 
+  const ALL_ANIMALS = ['犬', '猫', '小動物', '鳥', 'エキゾチック']
   const [form, setForm] = useState({
     name: '', email: '', tel: '', licenseNo: '',
-    specialty: '', experience: '', animals: '',
+    specialty: '', experience: '',
     hospital: '', career: '', bio: '', nightOk: '対応可能',
   })
+  const [selectedAnimals, setSelectedAnimals] = useState([])
   const [licenseImage, setLicenseImage] = useState(null)
   const [licenseFileName, setLicenseFileName] = useState('')
   const [formStep, setFormStep] = useState(1)
@@ -225,6 +227,7 @@ export default function VetDashboard() {
       if (!form.tel) e.tel = '必須です'
       if (!form.licenseNo) e.licenseNo = '必須です'
       if (!form.specialty) e.specialty = '必須です'
+      if (selectedAnimals.length === 0) e.animals = '1つ以上選択してください'
     }
     if (step === 2) {
       if (!licenseImage) e.licenseImage = '免許証画像をアップロードしてください'
@@ -242,6 +245,7 @@ export default function VetDashboard() {
   const handleSubmit = () => {
     const app = {
       ...form, licenseImage, licenseFileName,
+      animals: selectedAnimals,
       status: 'pending',
       submittedAt: new Date().toISOString(),
       id: Date.now(),
@@ -306,6 +310,7 @@ export default function VetDashboard() {
           { label: 'メール', value: application.email },
           { label: '獣医師免許番号', value: application.licenseNo },
           { label: '専門分野', value: application.specialty },
+          { label: '対応動物', value: Array.isArray(application.animals) ? application.animals.join('・') : application.animals },
           { label: '勤務先', value: application.hospital },
           { label: '申請日時', value: new Date(application.submittedAt).toLocaleString('ja-JP') },
         ].map((r, i, arr) => (
@@ -358,7 +363,6 @@ export default function VetDashboard() {
             { key: 'licenseNo', label: '獣医師免許番号', type: 'text', placeholder: '第XXXXX号' },
             { key: 'specialty', label: '専門分野', type: 'text', placeholder: '例：内科・皮膚科' },
             { key: 'experience', label: '経験年数', type: 'number', placeholder: '10' },
-            { key: 'animals', label: '対応可能動物', type: 'text', placeholder: '犬、猫、小動物' },
           ].map(f => (
             <div key={f.key} className="form-group">
               <label className="form-label">{f.label} <span style={{ color: '#ef4444' }}>*</span></label>
@@ -368,6 +372,22 @@ export default function VetDashboard() {
               {errors[f.key] && <p style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: 4 }}>{errors[f.key]}</p>}
             </div>
           ))}
+          <div className="form-group">
+            <label className="form-label">対応可能動物 <span style={{ color: '#ef4444' }}>*</span></label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+              {ALL_ANIMALS.map(a => {
+                const checked = selectedAnimals.includes(a)
+                return (
+                  <button key={a} type="button" onClick={() => setSelectedAnimals(prev => checked ? prev.filter(x => x !== a) : [...prev, a])} style={{
+                    padding: '8px 16px', borderRadius: 50, border: `2px solid ${checked ? '#2a9d8f' : '#e5e7eb'}`,
+                    background: checked ? '#e8f6f5' : '#fff', color: checked ? '#2a9d8f' : '#6b7280',
+                    fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
+                  }}>{a}</button>
+                )
+              })}
+            </div>
+            {errors.animals && <p style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: 4 }}>{errors.animals}</p>}
+          </div>
           <div className="form-group">
             <label className="form-label">夜間対応</label>
             <select className="form-select" value={form.nightOk} onChange={e => set('nightOk', e.target.value)}>
@@ -459,7 +479,7 @@ export default function VetDashboard() {
               { label: '免許番号', value: form.licenseNo },
               { label: '専門分野', value: form.specialty },
               { label: '経験年数', value: form.experience + '年' },
-              { label: '対応動物', value: form.animals },
+              { label: '対応動物', value: selectedAnimals.join('・') || '未選択' },
               { label: '夜間対応', value: form.nightOk },
             ].map((r, i, arr) => (
               <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < arr.length - 1 ? '1px solid #e5e7eb' : 'none', fontSize: '0.87rem' }}>

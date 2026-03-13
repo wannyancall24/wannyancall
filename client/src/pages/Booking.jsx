@@ -66,7 +66,9 @@ export default function Booking() {
 
   const [step, setStep] = useState(1)
   const [pet, setPet] = useState('ポチ（トイプードル）')
-  const [animalType, setAnimalType] = useState('dogcat')
+  const [selectedAnimal, setSelectedAnimal] = useState('犬')
+  const EXOTIC_ANIMALS = ['小動物', '鳥', 'エキゾチック']
+  const animalType = EXOTIC_ANIMALS.includes(selectedAnimal) ? 'exotic' : 'dogcat'
   const [duration, setDuration] = useState(15)
   const [nominated, setNominated] = useState(false)
   const [symptoms, setSymptoms] = useState('')
@@ -218,16 +220,19 @@ export default function Booking() {
           {/* 動物種別 */}
           <div className="form-group">
             <label className="form-label">動物の種類</label>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {[
-                { key: 'dogcat', label: '🐕 犬・猫', price: '¥3,000〜' },
-                { key: 'exotic', label: '🐹 小動物・鳥・その他', price: '¥4,500〜' },
+                { key: '犬', label: '🐶 犬', price: '¥3,000〜' },
+                { key: '猫', label: '🐱 猫', price: '¥3,000〜' },
+                { key: '小動物', label: '🐹 小動物', price: '¥4,500〜' },
+                { key: '鳥', label: '🐦 鳥', price: '¥4,500〜' },
+                { key: 'エキゾチック', label: '🦎 エキゾチック', price: '¥4,500〜' },
               ].map(t => (
-                <button key={t.key} onClick={() => setAnimalType(t.key)} style={{
-                  flex: 1, padding: '10px 8px', borderRadius: 12, cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem',
-                  border: animalType === t.key ? '2px solid #2a9d8f' : '2px solid #e5e7eb',
-                  background: animalType === t.key ? '#e8f6f5' : '#fff',
-                  color: animalType === t.key ? '#2a9d8f' : '#6b7280',
+                <button key={t.key} onClick={() => setSelectedAnimal(t.key)} style={{
+                  flex: '1 1 calc(33% - 8px)', padding: '10px 8px', borderRadius: 12, cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem',
+                  border: selectedAnimal === t.key ? '2px solid #2a9d8f' : '2px solid #e5e7eb',
+                  background: selectedAnimal === t.key ? '#e8f6f5' : '#fff',
+                  color: selectedAnimal === t.key ? '#2a9d8f' : '#6b7280',
                 }}>
                   <div>{t.label}</div>
                   <div style={{ fontSize: '0.72rem', marginTop: 2, opacity: 0.8 }}>{t.price}</div>
@@ -353,7 +358,7 @@ export default function Booking() {
           <div className="card" style={{ marginBottom: 14 }}>
             {[
               { label: 'ペット', value: pet },
-              { label: '動物種別', value: animalType === 'dogcat' ? '犬・猫' : '小動物・鳥・その他' },
+              { label: '動物種別', value: selectedAnimal },
               { label: '相談時間', value: `${duration}分` },
               { label: '指名', value: nominated ? '指名あり（+¥500）' : 'なし' },
               { label: '相談内容', value: symptoms },
