@@ -42,6 +42,7 @@ export default function History() {
   const [filter, setFilter] = useState('all')
   const [reportTarget, setReportTarget] = useState(null)
   const [blockTarget, setBlockTarget] = useState(null)
+  const [completingId, setCompletingId] = useState(null)
 
   useEffect(() => {
     if (!user) {
@@ -76,6 +77,36 @@ export default function History() {
     }
     fetchHistory()
   }, [user])
+
+  async function handleEndConsultation(consultId) {
+    if (completingId) return
+    setCompletingId(consultId)
+    try {
+      const { data: roomData } = await supabase
+        .from('chat_rooms')
+        .select('id, payment_intent_id, total_amount')
+        .eq('consultation_id', consultId)
+        .single()
+      if (roomData?.payment_intent_id && roomData?.total_amount) {
+        await fetch('/api/stripe/capture-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paymentIntentId: roomData.payment_intent_id, amount: roomData.total_amount }),
+        })
+      }
+      if (roomData) {
+        await supabase.from('chat_rooms')
+          .update({ status: 'completed', completed_at: new Date().toISOString() })
+          .eq('id', roomData.id)
+      }
+      await supabase.from('consultations').update({ status: 'completed' }).eq('id', consultId)
+      setHistory(prev => prev.map(h => h.id === consultId ? { ...h, status: 'completed' } : h))
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err)
+    }
+    setCompletingId(null)
+  }
 
   const displayHistory = history.map(h => {
     const statusLabel = STATUS_MAP[h.status] || h.status
@@ -197,6 +228,22 @@ export default function History() {
                 </div>
 
                 {/* Actions */}
+                {h.status === '相談中' && (
+                  <div style={{ marginTop: 12 }}>
+                    <button
+                      onClick={() => handleEndConsultation(h.id)}
+                      disabled={completingId === h.id}
+                      style={{
+                        width: '100%', background: completingId === h.id ? '#9ca3af' : '#ef4444',
+                        color: '#fff', border: 'none', borderRadius: 50,
+                        padding: '10px', fontWeight: 800, fontSize: '0.88rem',
+                        cursor: completingId === h.id ? 'default' : 'pointer',
+                      }}
+                    >
+                      {completingId === h.id ? '処理中...' : '相談を終了する'}
+                    </button>
+                  </div>
+                )}
                 {h.status === '完了' && (
                   <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                     <button className="btn-secondary" style={{ fontSize: '0.82rem', padding: '8px 0' }}

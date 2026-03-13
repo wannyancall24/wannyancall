@@ -147,6 +147,8 @@ export default function VetDashboard() {
   const [selectedMonthIdx, setSelectedMonthIdx] = useState(0)
   const [monthlyRewards, setMonthlyRewards] = useState([])
   const [rewardLoading, setRewardLoading] = useState(true)
+  const [inProgressConsults, setInProgressConsults] = useState([])
+  const [completingId, setCompletingId] = useState(null)
 
   const ALL_ANIMALS = ['犬', '猫', '小動物', '鳥', 'エキゾチック']
   const [form, setForm] = useState({
@@ -191,6 +193,15 @@ export default function VetDashboard() {
         .in('status', ['completed', 'in_progress'])
         .gte('created_at', sixMonthsAgo.toISOString())
         .order('created_at', { ascending: false })
+      // 進行中の相談を取得
+      const { data: activeConsults } = await supabase
+        .from('consultations')
+        .select('id, symptoms, pet, created_at, total_amount')
+        .eq('vet_id', vetData.id)
+        .eq('status', 'in_progress')
+        .order('created_at', { ascending: false })
+      setInProgressConsults(activeConsults || [])
+
       if (!consults || consults.length === 0) { setRewardLoading(false); return }
       // 月ごとにグルーピング
       const grouped = {}
@@ -207,6 +218,36 @@ export default function VetDashboard() {
     }
     fetchRewards()
   }, [user])
+
+  async function handleEndConsultation(consultId) {
+    if (completingId) return
+    setCompletingId(consultId)
+    try {
+      const { data: roomData } = await supabase
+        .from('chat_rooms')
+        .select('id, payment_intent_id, total_amount')
+        .eq('consultation_id', consultId)
+        .single()
+      if (roomData?.payment_intent_id && roomData?.total_amount) {
+        await fetch('/api/stripe/capture-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paymentIntentId: roomData.payment_intent_id, amount: roomData.total_amount }),
+        })
+      }
+      if (roomData) {
+        await supabase.from('chat_rooms')
+          .update({ status: 'completed', completed_at: new Date().toISOString() })
+          .eq('id', roomData.id)
+      }
+      await supabase.from('consultations').update({ status: 'completed' }).eq('id', consultId)
+      setInProgressConsults(prev => prev.filter(c => c.id !== consultId))
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err)
+    }
+    setCompletingId(null)
+  }
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -804,6 +845,36 @@ export default function VetDashboard() {
       <div style={{ padding: 16 }}>
         {activeTab === 'overview' && (
           <>
+            {/* 進行中の相談 */}
+            {inProgressConsults.length > 0 && (
+              <div style={{ border: '2px solid #f59e0b', borderRadius: 14, padding: '14px 16px', marginBottom: 16, background: '#fffbeb' }}>
+                <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#92400e', marginBottom: 10 }}>🟡 進行中の相談 ({inProgressConsults.length}件)</div>
+                {inProgressConsults.map(c => (
+                  <div key={c.id} style={{ background: '#fff', borderRadius: 10, padding: '12px 14px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#264653', marginBottom: 2 }}>{c.symptoms || '相談中'}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+                        {c.pet && `🐾 ${c.pet}　`}
+                        開始: {new Date(c.created_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleEndConsultation(c.id)}
+                      disabled={completingId === c.id}
+                      style={{
+                        background: completingId === c.id ? '#9ca3af' : '#ef4444',
+                        color: '#fff', border: 'none', borderRadius: 50,
+                        padding: '8px 16px', fontWeight: 700, fontSize: '0.82rem',
+                        cursor: completingId === c.id ? 'default' : 'pointer', flexShrink: 0,
+                      }}
+                    >
+                      {completingId === c.id ? '処理中...' : '相談終了'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* 50% headline */}
             <div style={{ background: 'linear-gradient(135deg, #e8f6f5, #d1f0ec)', border: '1px solid #2a9d8f', borderRadius: 14, padding: '16px 20px', marginBottom: 16, textAlign: 'center' }}>
               <div style={{ fontSize: '2.5rem', fontWeight: 900, color: '#2a9d8f' }}>50%</div>
