@@ -90,8 +90,15 @@ export default function Auth() {
       }
     }
 
+    // Resend経由でウェルカムメール送信（失敗しても登録自体は成功扱い）
+    fetch('/api/auth/send-welcome', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, name, role: userType }),
+    }).catch(() => {})
+
     setLoading(false)
-    setMessage('確認メールを送信しました。メールを確認してください。')
+    setMessage('ご登録ありがとうございます！登録確認メールをお送りしました。')
   }
 
   const handleGoogleLogin = async () => {
@@ -108,15 +115,22 @@ export default function Auth() {
       return
     }
     setLoading(true)
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth`,
-    })
-    setLoading(false)
-    if (resetError) {
-      setError(`送信に失敗しました: ${resetError.message}`)
-    } else {
-      setMessage('パスワードリセット用のメールを送信しました。メールをご確認ください。')
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(`送信に失敗しました: ${data.error || res.statusText}`)
+      } else {
+        setMessage('パスワードリセット用のメールを送信しました。メールをご確認ください。')
+      }
+    } catch (err) {
+      setError(`送信に失敗しました: ${err.message}`)
     }
+    setLoading(false)
   }
 
   return (
