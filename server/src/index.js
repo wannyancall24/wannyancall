@@ -93,7 +93,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
   // Resend でメール送信
   const resend = new Resend(RESEND_API_KEY)
   try {
-    await resend.emails.send({
+    const { data: mailData, error: mailError } = await resend.emails.send({
       from: RESEND_FROM,
       to: [email],
       subject: '【WanNyanCall24】パスワードリセットのご案内',
@@ -133,8 +133,13 @@ app.post('/api/auth/reset-password', async (req, res) => {
         </div>
       `,
     })
+    if (mailError) {
+      console.error('Resend error:', mailError)
+      return res.status(500).json({ error: `メール送信エラー: ${mailError.message}` })
+    }
+    console.log('Resend sent:', mailData?.id)
   } catch (mailErr) {
-    console.error('Resend error:', mailErr)
+    console.error('Resend exception:', mailErr)
     return res.status(500).json({ error: `メール送信エラー: ${mailErr.message}` })
   }
 
@@ -158,7 +163,7 @@ app.post('/api/auth/send-welcome', async (req, res) => {
   const displayName = name || (isVet ? '先生' : 'お客様')
 
   try {
-    await resend.emails.send({
+    const { data: mailData, error: mailError } = await resend.emails.send({
       from: RESEND_FROM,
       to: [email],
       subject: '【WanNyanCall24】ご登録ありがとうございます',
@@ -201,9 +206,14 @@ app.post('/api/auth/send-welcome', async (req, res) => {
         </div>
       `,
     })
+    if (mailError) {
+      console.error('welcome email error:', mailError)
+      return res.json({ ok: true, emailSent: false, reason: mailError.message })
+    }
+    console.log('welcome email sent:', mailData?.id)
     res.json({ ok: true, emailSent: true })
   } catch (err) {
-    console.error('welcome email error:', err)
+    console.error('welcome email exception:', err)
     res.json({ ok: true, emailSent: false, reason: err.message })
   }
 })
