@@ -108,22 +108,15 @@ export default function Auth() {
       return
     }
     setLoading(true)
-    try {
-      const res = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setError(`送信に失敗しました: ${data.error || res.statusText}`)
-      } else {
-        setMessage('パスワードリセット用のメールを送信しました。メールをご確認ください。')
-      }
-    } catch (err) {
-      setError(`送信に失敗しました: ${err.message}`)
-    }
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth`,
+    })
     setLoading(false)
+    if (resetError) {
+      setError(`送信に失敗しました: ${resetError.message}`)
+    } else {
+      setMessage('パスワードリセット用のメールを送信しました。メールをご確認ください。')
+    }
   }
 
   return (
