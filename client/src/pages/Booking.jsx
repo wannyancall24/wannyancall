@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { getStoredCard, getBrandLabel } from '../lib/stripeCard'
 import { supabase, supabaseReady } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { calcTotal } from '../lib/pricing'
 
 const VETS = {
   1: { name: '田中 健一', specialty: '内科・皮膚科', photo: '👨‍⚕️', rating: 4.9 },
@@ -45,18 +46,6 @@ function formatElapsed(sec) {
   const m = Math.floor(sec / 60).toString().padStart(2, '0')
   const s = (sec % 60).toString().padStart(2, '0')
   return `${m}:${s}`
-}
-
-function calcTotal({ animalType, duration, hour, nominated = false, hasPlan = false }) {
-  const base = animalType === 'exotic' ? 4500 : 3000
-  const extPer5 = animalType === 'exotic' ? 1500 : 1000
-  const ext = Math.max(0, Math.floor((duration - 15) / 5)) * extPer5
-  const systemFee = hasPlan ? 0 : 800
-  const nominationFee = nominated ? 500 : 0
-  const timeFee = hour >= 22 || hour < 8 ? 1500 : hour >= 20 ? 1000 : 0
-  const timeLabel = hour >= 22 || hour < 8 ? '深夜加算' : hour >= 20 ? '夜間加算' : null
-  const total = base + ext + systemFee + nominationFee + timeFee
-  return { base, ext, systemFee, nominationFee, timeFee, timeLabel, total }
 }
 
 export default function Booking() {
@@ -120,7 +109,16 @@ export default function Booking() {
       const res = await fetch('/api/stripe/create-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: total, paymentMethodId: card.paymentMethodId, customerId: card.customerId }),
+        body: JSON.stringify({
+          amount: total,
+          paymentMethodId: card.paymentMethodId,
+          customerId: card.customerId,
+          animalType,
+          duration,
+          hour: nowHour,
+          nominated,
+          hasPlan,
+        }),
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)

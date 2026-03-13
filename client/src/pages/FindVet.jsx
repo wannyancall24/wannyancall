@@ -182,7 +182,9 @@ export default function FindVet() {
                       <div style={{ fontSize: '0.82rem', color: '#6b7280', marginTop: 1 }}>{v.specialty}</div>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{ fontWeight: 800, color: '#2a9d8f', fontSize: '1rem' }}>¥3,000</div>
+                      <div style={{ fontWeight: 800, color: '#2a9d8f', fontSize: '1rem' }}>
+                        {(v.exotic || v.specialty?.match(/小動物|鳥|エキゾチック/)) ? '¥4,500〜' : '¥3,000〜'}
+                      </div>
                       <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>15分〜</div>
                     </div>
                   </div>
