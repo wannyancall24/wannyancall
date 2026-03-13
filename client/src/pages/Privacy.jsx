@@ -217,7 +217,7 @@ export default function Privacy() {
           <div className="card" style={{ background: '#f9fafb', marginTop: 8 }}>
             <p style={{ fontSize: '0.82rem', color: '#6b7280', lineHeight: 1.8 }}>
               制定日：2024年12月1日<br />
-              最終更新日：2025年3月1日
+              最終更新日：2026年3月13日
             </p>
             <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
               <p style={{ fontSize: '0.82rem', color: '#6b7280', lineHeight: 1.8 }}>
