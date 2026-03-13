@@ -55,20 +55,35 @@ export default function Booking() {
   const fallbackVet = VETS[id] || VETS[1]
   const [vet, setVet] = useState(fallbackVet)
 
+  const EXOTIC_ANIMALS = ['小動物', '鳥', 'エキゾチック']
+  const ALL_ANIMALS = [
+    { key: '犬', label: '🐶 犬', price: '¥3,000〜' },
+    { key: '猫', label: '🐱 猫', price: '¥3,000〜' },
+    { key: '小動物', label: '🐹 小動物', price: '¥4,500〜' },
+    { key: '鳥', label: '🐦 鳥', price: '¥4,500〜' },
+    { key: 'エキゾチック', label: '🦎 エキゾチック', price: '¥4,500〜' },
+  ]
+
   // Supabaseから獣医師データを取得
   useEffect(() => {
     if (!supabaseReady) return
-    supabase.from('vets').select('*').eq('id', id).single()
+    supabase.from('vets').select('id,name,specialty,photo,rating,available_animals').eq('id', id).single()
       .then(({ data }) => {
-        if (data) setVet({ name: data.name, specialty: data.specialty, photo: data.photo || '👨‍⚕️', rating: data.rating })
+        if (!data) return
+        const available = data.available_animals || []
+        setVet({ name: data.name, specialty: data.specialty, photo: data.photo || '👨‍⚕️', rating: data.rating, available_animals: available })
+        // 獣医師が対応している最初の動物種をデフォルト選択
+        if (available.length > 0 && !available.includes(selectedAnimal)) {
+          setSelectedAnimal(available[0])
+        }
       })
   }, [id])
 
   const [step, setStep] = useState(1)
   const [pet, setPet] = useState('ポチ（トイプードル）')
   const [selectedAnimal, setSelectedAnimal] = useState('犬')
-  const EXOTIC_ANIMALS = ['小動物', '鳥', 'エキゾチック']
   const animalType = EXOTIC_ANIMALS.includes(selectedAnimal) ? 'exotic' : 'dogcat'
+  const availableAnimals = vet.available_animals || ALL_ANIMALS.map(a => a.key)
   const [duration, setDuration] = useState(15)
   const [nominated, setNominated] = useState(false)
   const [symptoms, setSymptoms] = useState('')
@@ -221,23 +236,25 @@ export default function Booking() {
           <div className="form-group">
             <label className="form-label">動物の種類</label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {[
-                { key: '犬', label: '🐶 犬', price: '¥3,000〜' },
-                { key: '猫', label: '🐱 猫', price: '¥3,000〜' },
-                { key: '小動物', label: '🐹 小動物', price: '¥4,500〜' },
-                { key: '鳥', label: '🐦 鳥', price: '¥4,500〜' },
-                { key: 'エキゾチック', label: '🦎 エキゾチック', price: '¥4,500〜' },
-              ].map(t => (
-                <button key={t.key} onClick={() => setSelectedAnimal(t.key)} style={{
-                  flex: '1 1 calc(33% - 8px)', padding: '10px 8px', borderRadius: 12, cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem',
-                  border: selectedAnimal === t.key ? '2px solid #2a9d8f' : '2px solid #e5e7eb',
-                  background: selectedAnimal === t.key ? '#e8f6f5' : '#fff',
-                  color: selectedAnimal === t.key ? '#2a9d8f' : '#6b7280',
-                }}>
-                  <div>{t.label}</div>
-                  <div style={{ fontSize: '0.72rem', marginTop: 2, opacity: 0.8 }}>{t.price}</div>
-                </button>
-              ))}
+              {ALL_ANIMALS.map(t => {
+                const supported = availableAnimals.includes(t.key)
+                const selected = selectedAnimal === t.key
+                return (
+                  <button key={t.key} onClick={() => supported && setSelectedAnimal(t.key)} style={{
+                    flex: '1 1 calc(33% - 8px)', padding: '10px 8px', borderRadius: 12,
+                    cursor: supported ? 'pointer' : 'not-allowed', fontWeight: 700, fontSize: '0.82rem',
+                    border: selected ? '2px solid #2a9d8f' : '2px solid #e5e7eb',
+                    background: selected ? '#e8f6f5' : supported ? '#fff' : '#f3f4f6',
+                    color: selected ? '#2a9d8f' : supported ? '#6b7280' : '#d1d5db',
+                    opacity: supported ? 1 : 0.5,
+                  }}>
+                    <div>{t.label}</div>
+                    <div style={{ fontSize: '0.72rem', marginTop: 2, opacity: 0.8 }}>
+                      {supported ? t.price : '対応外'}
+                    </div>
+                  </button>
+                )
+              })}
             </div>
           </div>
 
