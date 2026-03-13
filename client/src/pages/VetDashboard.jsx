@@ -159,9 +159,12 @@ export default function VetDashboard() {
   const [selectedAnimals, setSelectedAnimals] = useState([])
   const [licenseImage, setLicenseImage] = useState(null)
   const [licenseFileName, setLicenseFileName] = useState('')
+  const [photoImage, setPhotoImage] = useState(null)
+  const [photoFileName, setPhotoFileName] = useState('')
   const [formStep, setFormStep] = useState(1)
   const [errors, setErrors] = useState({})
   const fileInputRef = useRef()
+  const photoInputRef = useRef()
 
   useEffect(() => {
     const handler = () => {
@@ -260,6 +263,15 @@ export default function VetDashboard() {
     reader.readAsDataURL(file)
   }
 
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    setPhotoFileName(file.name)
+    const reader = new FileReader()
+    reader.onload = (ev) => setPhotoImage(ev.target.result)
+    reader.readAsDataURL(file)
+  }
+
   const validate = (step) => {
     const e = {}
     if (step === 1) {
@@ -285,7 +297,7 @@ export default function VetDashboard() {
 
   const handleSubmit = () => {
     const app = {
-      ...form, licenseImage, licenseFileName,
+      ...form, licenseImage, licenseFileName, photoImage, photoFileName,
       animals: selectedAnimals,
       status: 'pending',
       submittedAt: new Date().toISOString(),
@@ -479,6 +491,41 @@ export default function VetDashboard() {
       {formStep === 3 && (
         <div className="card">
           <h3 style={{ fontWeight: 700, marginBottom: 16 }}>勤務先・経歴</h3>
+
+          {/* プロフィール写真（任意） */}
+          <div className="form-group">
+            <label className="form-label">
+              プロフィール写真
+              <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 400, marginLeft: 8 }}>任意・後からでも設定可能</span>
+            </label>
+            <input ref={photoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoUpload} />
+            <div onClick={() => photoInputRef.current.click()} style={{
+              border: '2px dashed #e5e7eb', borderRadius: 12, padding: '20px 16px',
+              textAlign: 'center', cursor: 'pointer', background: photoImage ? '#e8f6f5' : '#f9fafb',
+              marginBottom: 4, transition: 'border-color 0.15s',
+            }}>
+              {photoImage ? (
+                <>
+                  <img src={photoImage} alt="プロフィール写真プレビュー" style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', marginBottom: 8, border: '3px solid #2a9d8f' }} />
+                  <p style={{ fontSize: '0.82rem', color: '#2a9d8f', fontWeight: 600 }}>✅ {photoFileName}</p>
+                  <p style={{ fontSize: '0.75rem', color: '#9ca3af' }}>タップして変更</p>
+                </>
+              ) : (
+                <>
+                  <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', margin: '0 auto 8px' }}>📷</div>
+                  <p style={{ fontWeight: 600, color: '#6b7280', fontSize: '0.88rem', marginBottom: 2 }}>タップして写真を選択</p>
+                  <p style={{ fontSize: '0.75rem', color: '#9ca3af' }}>JPG / PNG（推奨: 正方形）</p>
+                </>
+              )}
+            </div>
+            {photoImage && (
+              <button type="button" onClick={() => { setPhotoImage(null); setPhotoFileName('') }}
+                style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: '0.75rem', cursor: 'pointer', padding: '2px 0' }}>
+                ✕ 写真を削除
+              </button>
+            )}
+          </div>
+
           <div className="form-group">
             <label className="form-label">現在（または直近）の勤務先 <span style={{ color: '#ef4444' }}>*</span></label>
             <input className="form-input" type="text" placeholder="例：東京動物病院"
@@ -533,6 +580,15 @@ export default function VetDashboard() {
             <h3 style={{ fontWeight: 700, marginBottom: 12, fontSize: '0.95rem' }}>獣医師免許証</h3>
             {licenseImage && <img src={licenseImage} alt="獣医師免許証" style={{ width: '100%', borderRadius: 8, border: '1px solid #e5e7eb' }} />}
           </div>
+          {photoImage && (
+            <div className="card">
+              <h3 style={{ fontWeight: 700, marginBottom: 12, fontSize: '0.95rem' }}>プロフィール写真</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <img src={photoImage} alt="プロフィール写真" style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', border: '2px solid #2a9d8f' }} />
+                <span style={{ fontSize: '0.82rem', color: '#6b7280' }}>{photoFileName}</span>
+              </div>
+            </div>
+          )}
           <div className="card">
             <h3 style={{ fontWeight: 700, marginBottom: 10, fontSize: '0.95rem' }}>勤務先・経歴</h3>
             <p style={{ fontSize: '0.88rem', color: '#264653', marginBottom: 8 }}><strong>勤務先：</strong>{form.hospital}</p>
