@@ -295,7 +295,7 @@ export default function Booking() {
               }}
             >
               <span>{nominated ? '✅ 指名あり' : '指名なし（指名しない）'}</span>
-              <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>+¥500</span>
+              {nominated && <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>+¥500</span>}
             </button>
             <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: 4 }}>
               指名料は全額獣医師に支払われます
