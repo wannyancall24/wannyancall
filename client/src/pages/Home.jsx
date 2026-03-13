@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { supabase, supabaseReady } from '../lib/supabase'
 
 const REQUESTS_KEY = 'exoticRequests'
 function loadRequests() {
@@ -8,12 +9,6 @@ function loadRequests() {
 function saveRequests(reqs) {
   localStorage.setItem(REQUESTS_KEY, JSON.stringify(reqs))
 }
-
-const VETS = [
-  { id: 1, name: '田中 健一', specialty: '内科・皮膚科', rating: 4.9, count: 312, photo: '👨‍⚕️', tags: ['犬', '猫'], available: true },
-  { id: 2, name: '鈴木 麻衣', specialty: '外科・整形外科', rating: 4.8, count: 208, photo: '👩‍⚕️', tags: ['犬', '猫', '小動物'], available: true },
-  { id: 3, name: '佐藤 雄太', specialty: '眼科・耳鼻科', rating: 4.7, count: 156, photo: '👨‍⚕️', tags: ['猫'], available: false },
-]
 
 const DOG_CAT_PRICES = [
   { label: '基本相談 15分', price: '3,000円', bold: true },
@@ -322,6 +317,17 @@ export default function Home() {
   const [expandExotic, setExpandExotic] = useState(false)
   const [showExoticModal, setShowExoticModal] = useState(false)
   const [consultConfirm, setConsultConfirm] = useState(null) // null | 'dogcat' | 'exotic'
+  const [vets, setVets] = useState([])
+
+  useEffect(() => {
+    if (!supabaseReady) return
+    supabase
+      .from('vets')
+      .select('id,name,specialty,photo,rating,review_count,available_animals,is_online')
+      .order('rating', { ascending: false })
+      .limit(3)
+      .then(({ data }) => { if (data) setVets(data) })
+  }, [])
 
   function handleConsultClick(type) {
     setConsultConfirm(type)
@@ -574,30 +580,30 @@ export default function Home() {
       {/* Vet List */}
       <section className="section" style={{ paddingTop: 0 }}>
         <h2 className="section-title">👨‍⚕️ 在籍獣医師</h2>
-        {VETS.map((v) => (
-          <div key={v.id} className="card" onClick={() => {}} style={{ cursor: 'pointer' }}>
+        {vets.map((v) => (
+          <div key={v.id} className="card" onClick={() => navigate(`/vet/${v.id}`)} style={{ cursor: 'pointer' }}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
               <div style={{
                 width: 56, height: 56, borderRadius: '50%', background: '#e8f6f5',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', flexShrink: 0
-              }}>{v.photo}</div>
+              }}>{v.photo || '👨‍⚕️'}</div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontWeight: 700 }}>{v.name}</span>
-                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: v.available ? '#22c55e' : '#9ca3af', display: 'inline-block' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: v.is_online ? '#22c55e' : '#9ca3af', display: 'inline-block' }} />
                 </div>
                 <div style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: 6 }}>{v.specialty}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <span className="stars">{'★'.repeat(Math.floor(v.rating))}</span>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>{v.rating}</span>
-                  <span style={{ fontSize: '0.8rem', color: '#9ca3af' }}>({v.count}件)</span>
+                  <span className="stars">{'★'.repeat(Math.floor(v.rating ?? 0))}</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>{v.rating ?? '-'}</span>
+                  <span style={{ fontSize: '0.8rem', color: '#9ca3af' }}>({v.review_count ?? 0}件)</span>
                 </div>
-                <div>{v.tags.map(t => <span key={t} className="tag">{t}</span>)}</div>
+                <div>{(v.available_animals || []).map(t => <span key={t} className="tag">{t}</span>)}</div>
               </div>
             </div>
           </div>
         ))}
-        <button className="btn-secondary" onClick={() => {}}>すべての獣医師を見る</button>
+        <button className="btn-secondary" onClick={() => navigate('/find')}>すべての獣医師を見る</button>
       </section>
 
       {/* Contact */}
