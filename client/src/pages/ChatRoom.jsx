@@ -19,6 +19,7 @@ export default function ChatRoom() {
   const [completing, setCompleting] = useState(false)
   const [toast, setToast] = useState(null)
   const [elapsedSec, setElapsedSec] = useState(0)
+  const [consultation, setConsultation] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [showVideo, setShowVideo] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
@@ -49,6 +50,15 @@ export default function ChatRoom() {
         return
       }
       setRoom(data)
+      // consultation データも取得（実際の経過時間に基づくキャプチャ金額計算用）
+      if (data?.consultation_id) {
+        supabase
+          .from('consultations')
+          .select('id, animal_type, base_amount, nomination_fee, total_amount, duration')
+          .eq('id', data.consultation_id)
+          .single()
+          .then(({ data: c }) => { if (c) setConsultation(c) })
+      }
       setLoading(false)
     }
     fetchRoom()
@@ -176,19 +186,39 @@ export default function ChatRoom() {
     fileInputRef.current.value = ''
   }
 
+  // 実際の経過時間に基づいてキャプチャ金額を計算（延長料金対応）
+  function calcCaptureAmount(elapsedSeconds) {
+    if (!room?.total_amount) return 0
+    if (!consultation) return room.total_amount  // consultation未取得時はフルキャプチャ
+
+    const actualDuration = Math.max(15, Math.ceil(elapsedSeconds / 60))
+    const isExotic = consultation.animal_type === 'exotic'
+    const base = isExotic ? 4500 : 3000
+    const extPer5 = isExotic ? 1500 : 1000
+
+    // 実際の延長料金
+    const actualExt = Math.max(0, Math.floor((actualDuration - 15) / 5)) * extPer5
+    // 予約時の延長料金（base_amount = base + booked_ext）
+    const bookedExt = Math.max(0, (consultation.base_amount || base) - base)
+    // 差分を反映した金額（延長短縮なら安く、延長超過なら capped）
+    const adjustedAmount = room.total_amount + (actualExt - bookedExt)
+    return Math.min(Math.max(adjustedAmount, base), room.total_amount)
+  }
+
   // 相談完了（獣医師のみ）
   async function handleComplete() {
     if (completing) return
     setCompleting(true)
     try {
-      // Stripe決済確定
+      // Stripe決済確定（実際の経過時間に基づく金額）
       if (room.payment_intent_id && room.total_amount) {
+        const captureAmount = calcCaptureAmount(elapsedSec)
         const res = await fetch('/api/stripe/capture-payment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             paymentIntentId: room.payment_intent_id,
-            amount: room.total_amount,
+            amount: captureAmount,
           }),
         })
         const data = await res.json()
