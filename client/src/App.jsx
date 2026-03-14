@@ -20,6 +20,7 @@ import TokushohoPage from './pages/TokushohoPage'
 import VetRecruit from './pages/VetRecruit'
 import VetFaq from './pages/VetFaq'
 import PressRelease from './pages/PressRelease'
+import SymptomArticle from './pages/articles/SymptomArticle'
 
 // 獣医師専用ルートのガード
 function VetRoute({ children }) {
@@ -92,6 +93,7 @@ function AppInner() {
         <Route path="/vet-recruit" element={<VetRecruit />} />
         <Route path="/vet-faq" element={<VetFaq />} />
         <Route path="/press" element={<PressRelease />} />
+        <Route path="/article/:slug" element={<SymptomArticle />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
       <BottomNav userMode={userMode} />
