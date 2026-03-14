@@ -382,10 +382,11 @@ export default function Home() {
         <h2 className="section-title">🔎 症状から調べる</h2>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {Object.values(SYMPTOM_ARTICLES).map((a) => (
-            <button
+            <Link
               key={a.slug}
-              onClick={() => navigate(`/article/${a.slug}`)}
+              to={`/article/${a.slug}`}
               style={{
+                display: 'inline-block',
                 background: '#e8f6f5',
                 color: '#2a9d8f',
                 border: '1px solid #b2dfd9',
@@ -395,10 +396,11 @@ export default function Home() {
                 fontWeight: 600,
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
+                textDecoration: 'none',
               }}
             >
               {a.emoji} {a.animalType}の{a.symptom}
-            </button>
+            </Link>
           ))}
         </div>
       </section>
