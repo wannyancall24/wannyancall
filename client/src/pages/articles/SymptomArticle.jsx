@@ -221,7 +221,46 @@ export default function SymptomArticle() {
               </dl>
             )}
 
-            {section.note && (
+            {/* night section */}
+            {section.type === 'night' && (
+              <div style={{
+                background: '#eef6ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: 10,
+                padding: '16px',
+              }}>
+                {section.lead && (
+                  <p style={{ fontSize: '0.9rem', color: '#374151', lineHeight: 1.7, marginBottom: 12 }}>
+                    {section.lead}
+                  </p>
+                )}
+                {section.items && (
+                  <ul style={{ listStyle: 'none', margin: '0 0 12px', padding: 0 }}>
+                    {section.items.map((item, j) => (
+                      <li key={j} style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 8,
+                        padding: '6px 0',
+                        fontSize: '0.9rem',
+                        color: '#374151',
+                        borderBottom: '1px solid #dbeafe',
+                      }}>
+                        <span style={{ color: '#3b82f6', flexShrink: 0 }}>🌙</span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {section.outro && (
+                  <p style={{ fontSize: '0.88rem', color: '#1d4ed8', fontWeight: 600, margin: 0, lineHeight: 1.65 }}>
+                    {section.outro}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {section.note && section.type !== 'night' && (
               <p style={{ fontSize: '0.78rem', color: '#6b7280', marginTop: 10, marginBottom: 0 }}>
                 {section.note}
               </p>
