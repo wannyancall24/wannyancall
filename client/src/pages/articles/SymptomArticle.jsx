@@ -147,6 +147,11 @@ export default function SymptomArticle() {
                     </dt>
                     <dd style={{ fontSize: '0.9rem', color: '#374151', margin: 0, lineHeight: 1.65 }}>
                       {item.text}
+                      {item.note && (
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: 4, lineHeight: 1.5 }}>
+                          {item.note}
+                        </div>
+                      )}
                     </dd>
                   </div>
                 ))}
@@ -156,46 +161,68 @@ export default function SymptomArticle() {
             {/* danger items */}
             {section.type === 'danger' && section.items && (
               <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                {section.items.map((item, j) => (
-                  <li key={j} style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 10,
-                    padding: '8px 12px',
-                    marginBottom: 6,
-                    background: '#fff5f5',
-                    border: '1px solid #fecaca',
-                    borderRadius: 8,
-                    fontSize: '0.9rem',
-                    color: '#374151',
-                  }}>
-                    <span style={{ color: '#ef4444', fontSize: '1rem', flexShrink: 0 }}>⚠️</span>
-                    {item}
-                  </li>
-                ))}
+                {section.items.map((item, j) => {
+                  const text = typeof item === 'string' ? item : item.text
+                  const note = typeof item === 'object' ? item.note : null
+                  return (
+                    <li key={j} style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 10,
+                      padding: '8px 12px',
+                      marginBottom: 6,
+                      background: '#fff5f5',
+                      border: '1px solid #fecaca',
+                      borderRadius: 8,
+                      fontSize: '0.9rem',
+                      color: '#374151',
+                    }}>
+                      <span style={{ color: '#ef4444', fontSize: '1rem', flexShrink: 0 }}>⚠️</span>
+                      <div>
+                        {text}
+                        {note && (
+                          <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: 4, lineHeight: 1.5 }}>
+                            {note}
+                          </div>
+                        )}
+                      </div>
+                    </li>
+                  )
+                })}
               </ul>
             )}
 
             {/* watch items */}
             {section.type === 'watch' && section.items && (
               <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                {section.items.map((item, j) => (
-                  <li key={j} style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 10,
-                    padding: '8px 12px',
-                    marginBottom: 6,
-                    background: '#f0fdf4',
-                    border: '1px solid #bbf7d0',
-                    borderRadius: 8,
-                    fontSize: '0.9rem',
-                    color: '#374151',
-                  }}>
-                    <span style={{ color: '#22c55e', fontSize: '1rem', flexShrink: 0 }}>✅</span>
-                    {item}
-                  </li>
-                ))}
+                {section.items.map((item, j) => {
+                  const text = typeof item === 'string' ? item : item.text
+                  const note = typeof item === 'object' ? item.note : null
+                  return (
+                    <li key={j} style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 10,
+                      padding: '8px 12px',
+                      marginBottom: 6,
+                      background: '#f0fdf4',
+                      border: '1px solid #bbf7d0',
+                      borderRadius: 8,
+                      fontSize: '0.9rem',
+                      color: '#374151',
+                    }}>
+                      <span style={{ color: '#22c55e', fontSize: '1rem', flexShrink: 0 }}>✅</span>
+                      <div>
+                        {text}
+                        {note && (
+                          <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: 4, lineHeight: 1.5 }}>
+                            {note}
+                          </div>
+                        )}
+                      </div>
+                    </li>
+                  )
+                })}
               </ul>
             )}
 
@@ -220,6 +247,11 @@ export default function SymptomArticle() {
                     </dt>
                     <dd style={{ fontSize: '0.9rem', color: '#374151', margin: 0, lineHeight: 1.65 }}>
                       {item.text}
+                      {item.note && (
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: 4, lineHeight: 1.5 }}>
+                          {item.note}
+                        </div>
+                      )}
                     </dd>
                   </div>
                 ))}
@@ -252,7 +284,7 @@ export default function SymptomArticle() {
                         borderBottom: '1px solid #dbeafe',
                       }}>
                         <span style={{ color: '#3b82f6', flexShrink: 0 }}>🌙</span>
-                        {item}
+                        {typeof item === 'string' ? item : item.text}
                       </li>
                     ))}
                   </ul>

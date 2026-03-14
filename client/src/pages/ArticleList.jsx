@@ -49,44 +49,65 @@ export default function ArticleList() {
           🐾 犬・猫の症状ガイド
         </h1>
 
-        <div style={{ marginBottom: 24, position: 'relative' }}>
-          <input
-            type="text"
-            placeholder="症状名で検索（例：嘔吐、下痢）"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '11px 40px 11px 16px',
-              fontSize: '0.95rem',
-              border: '1px solid #e5e7eb',
-              borderRadius: 50,
-              outline: 'none',
-              boxSizing: 'border-box',
-              color: '#1f2937',
-            }}
-          />
-          {q && (
-            <button
-              type="button"
-              onClick={() => setQuery('')}
+        <div style={{ marginBottom: 24, display: 'flex', gap: 8 }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <input
+              type="text"
+              placeholder="症状名で検索（例：嘔吐、下痢）"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
               style={{
-                position: 'absolute',
-                right: 14,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                background: 'none',
-                border: 'none',
-                color: '#9ca3af',
-                fontSize: '1rem',
-                cursor: 'pointer',
-                padding: 0,
-                lineHeight: 1,
+                width: '100%',
+                padding: '11px 36px 11px 16px',
+                fontSize: '0.95rem',
+                border: '1px solid #e5e7eb',
+                borderRadius: 50,
+                outline: 'none',
+                boxSizing: 'border-box',
+                color: '#1f2937',
               }}
-            >
-              ✕
-            </button>
-          )}
+            />
+            {q && (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                style={{
+                  position: 'absolute',
+                  right: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: '#9ca3af',
+                  fontSize: '1rem',
+                  cursor: 'pointer',
+                  padding: 0,
+                  lineHeight: 1,
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={(e) => e.currentTarget.previousSibling?.querySelector('input')?.blur()}
+            style={{
+              background: '#2a9d8f',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 50,
+              padding: '11px 20px',
+              fontSize: '0.95rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            検索
+          </button>
         </div>
 
         {q && dogs.length === 0 && cats.length === 0 && (
