@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { supabase, supabaseReady } from '../lib/supabase'
-import { SYMPTOM_ARTICLES } from '../data/symptomArticles'
 
 const REQUESTS_KEY = 'exoticRequests'
 function loadRequests() {
@@ -638,35 +637,14 @@ export default function Home() {
 
       {/* Symptom Articles */}
       <section className="section" style={{ paddingTop: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <h2 className="section-title" style={{ margin: 0 }}>🔎 症状から調べる</h2>
-          <Link to="/articles" style={{ fontSize: '0.82rem', color: '#2a9d8f', fontWeight: 600, textDecoration: 'none' }}>
-            犬・猫の症状ガイド →
-          </Link>
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {Object.values(SYMPTOM_ARTICLES).map((a) => (
-            <button
-              key={a.slug}
-              type="button"
-              onClick={() => navigate(`/article/${a.slug}`)}
-              style={{
-                display: 'inline-block',
-                background: '#e8f6f5',
-                color: '#2a9d8f',
-                border: '1px solid #b2dfd9',
-                borderRadius: 50,
-                padding: '7px 14px',
-                fontSize: '0.83rem',
-                fontWeight: 600,
-                whiteSpace: 'nowrap',
-                cursor: 'pointer',
-              }}
-            >
-              {a.emoji} {a.animalType}の{a.symptom}
-            </button>
-          ))}
-        </div>
+        <h2 className="section-title">🔎 症状から調べる</h2>
+        <button
+          type="button"
+          onClick={() => navigate('/articles')}
+          className="btn-secondary"
+        >
+          🐾 犬・猫の症状ガイドを見る →
+        </button>
       </section>
 
       {/* Footer */}
