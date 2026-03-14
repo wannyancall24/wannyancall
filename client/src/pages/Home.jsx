@@ -319,6 +319,7 @@ export default function Home() {
   const [showExoticModal, setShowExoticModal] = useState(false)
   const [consultConfirm, setConsultConfirm] = useState(null) // null | 'dogcat' | 'exotic'
   const [vets, setVets] = useState([])
+  const [onlineVetCount, setOnlineVetCount] = useState(null)
 
   useEffect(() => {
     if (!supabaseReady) return
@@ -328,6 +329,11 @@ export default function Home() {
       .order('rating', { ascending: false })
       .limit(3)
       .then(({ data }) => { if (data) setVets(data) })
+    supabase
+      .from('vets')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_online', true)
+      .then(({ count }) => { if (count !== null) setOnlineVetCount(count) })
   }, [])
 
   function handleConsultClick(type) {
@@ -361,7 +367,7 @@ export default function Home() {
               display: 'flex', alignItems: 'center', gap: 4
             }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff', display: 'inline-block' }} />
-              オンライン獣医師 12名
+              オンライン獣医師 {onlineVetCount !== null ? `${onlineVetCount}名` : '...'}
             </span>
           </div>
           <h1 style={{ fontSize: '1.4rem', fontWeight: 800, lineHeight: 1.35, marginBottom: 8 }}>
