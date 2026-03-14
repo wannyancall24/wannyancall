@@ -368,7 +368,8 @@ export default function SymptomArticle() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {Object.values(SYMPTOM_ARTICLES)
               .filter((a) => a.slug !== slug)
-              .slice(0, 4)
+              .sort((a, b) => (b.animalType === article.animalType ? 1 : 0) - (a.animalType === article.animalType ? 1 : 0))
+              .slice(0, 5)
               .map((a) => (
                 <button
                   key={a.slug}

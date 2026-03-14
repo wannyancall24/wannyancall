@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { supabase, supabaseReady } from '../lib/supabase'
+import { SYMPTOM_ARTICLES } from '../data/symptomArticles'
 
 const REQUESTS_KEY = 'exoticRequests'
 function loadRequests() {
@@ -373,6 +374,32 @@ export default function Home() {
             onClick={() => navigate('/find')}>
             今すぐ獣医師を探す →
           </button>
+        </div>
+      </section>
+
+      {/* Symptom Articles */}
+      <section className="section">
+        <h2 className="section-title">🔎 症状から調べる</h2>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {Object.values(SYMPTOM_ARTICLES).map((a) => (
+            <button
+              key={a.slug}
+              onClick={() => navigate(`/article/${a.slug}`)}
+              style={{
+                background: '#e8f6f5',
+                color: '#2a9d8f',
+                border: '1px solid #b2dfd9',
+                borderRadius: 50,
+                padding: '7px 14px',
+                fontSize: '0.83rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {a.emoji} {a.animalType}の{a.symptom}
+            </button>
+          ))}
         </div>
       </section>
 

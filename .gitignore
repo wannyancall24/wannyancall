@@ -8,3 +8,4 @@ client/dist/
 scripts/.env
 server/.env
 scripts/vet-clinics-*.csv
+.vercel
