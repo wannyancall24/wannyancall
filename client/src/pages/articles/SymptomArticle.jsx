@@ -1,4 +1,4 @@
-import { useParams, Navigate, useNavigate } from 'react-router-dom'
+import { useParams, Navigate, useNavigate, Link } from 'react-router-dom'
 import SEOHead from '../../components/SEOHead'
 import { SYMPTOM_ARTICLES } from '../../data/symptomArticles'
 
@@ -369,25 +369,24 @@ export default function SymptomArticle() {
             {Object.values(SYMPTOM_ARTICLES)
               .filter((a) => a.slug !== slug)
               .sort((a, b) => (b.animalType === article.animalType ? 1 : 0) - (a.animalType === article.animalType ? 1 : 0))
-              .slice(0, 5)
               .map((a) => (
-                <button
+                <Link
                   key={a.slug}
-                  onClick={() => navigate(`/article/${a.slug}`)}
+                  to={`/article/${a.slug}`}
                   style={{
-                    textAlign: 'left',
+                    display: 'block',
                     padding: '12px 14px',
                     background: '#f9fafb',
                     border: '1px solid #e5e7eb',
                     borderRadius: 8,
-                    cursor: 'pointer',
                     fontSize: '0.88rem',
                     color: '#2a9d8f',
                     fontWeight: 600,
+                    textDecoration: 'none',
                   }}
                 >
                   {a.emoji} {a.h1}
-                </button>
+                </Link>
               ))}
           </div>
         </section>

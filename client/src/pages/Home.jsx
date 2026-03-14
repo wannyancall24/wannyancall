@@ -377,34 +377,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Symptom Articles */}
-      <section className="section">
-        <h2 className="section-title">🔎 症状から調べる</h2>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {Object.values(SYMPTOM_ARTICLES).map((a) => (
-            <Link
-              key={a.slug}
-              to={`/article/${a.slug}`}
-              style={{
-                display: 'inline-block',
-                background: '#e8f6f5',
-                color: '#2a9d8f',
-                border: '1px solid #b2dfd9',
-                borderRadius: 50,
-                padding: '7px 14px',
-                fontSize: '0.83rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                textDecoration: 'none',
-              }}
-            >
-              {a.emoji} {a.animalType}の{a.symptom}
-            </Link>
-          ))}
-        </div>
-      </section>
-
       {/* Features */}
       <section className="section">
         <h2 className="section-title">🐾 すべて込みのサービス</h2>
@@ -655,6 +627,33 @@ export default function Home() {
             <textarea className="form-input" rows={4} placeholder="お問い合わせ内容をご記入ください" style={{ resize: 'none' }} />
           </div>
           <button className="btn-primary">送信する</button>
+        </div>
+      </section>
+
+      {/* Symptom Articles */}
+      <section className="section" style={{ paddingTop: 0 }}>
+        <h2 className="section-title">🔎 症状から調べる</h2>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {Object.values(SYMPTOM_ARTICLES).map((a) => (
+            <Link
+              key={a.slug}
+              to={`/article/${a.slug}`}
+              style={{
+                display: 'inline-block',
+                background: '#e8f6f5',
+                color: '#2a9d8f',
+                border: '1px solid #b2dfd9',
+                borderRadius: 50,
+                padding: '7px 14px',
+                fontSize: '0.83rem',
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+                textDecoration: 'none',
+              }}
+            >
+              {a.emoji} {a.animalType}の{a.symptom}
+            </Link>
+          ))}
         </div>
       </section>
 
