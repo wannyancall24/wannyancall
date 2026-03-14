@@ -162,6 +162,24 @@ app.post('/api/auth/send-welcome', async (req, res) => {
   const isVet = role === 'vet'
   const displayName = name || (isVet ? '先生' : 'お客様')
 
+  // ── 管理者通知（fire-and-forget）──
+  const adminSubject = isVet
+    ? `【新規獣医師登録】${name || '（名前未入力）'}`
+    : `【新規飼い主登録】${email}`
+  const adminBody = isVet
+    ? `<p>新しい獣医師が登録されました。</p><ul><li>名前：${name || '（未入力）'}</li><li>メール：${email}</li></ul><p>登録日時：${new Date().toLocaleString('ja-JP')}</p>`
+    : `<p>新しい飼い主が登録されました。</p><ul><li>メール：${email}</li></ul><p>登録日時：${new Date().toLocaleString('ja-JP')}</p>`
+  resend.emails.send({
+    from: RESEND_FROM,
+    to: [ADMIN_EMAIL],
+    subject: adminSubject,
+    html: `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:20px;color:#222;">
+      <h2 style="color:#2a9d8f;">🐾 WanNyanCall24 管理者通知</h2>
+      ${adminBody}
+      <p style="font-size:0.8rem;color:#9ca3af;">※ このメールは自動送信です。</p>
+    </div>`,
+  }).catch(err => console.error('admin notify error:', err))
+
   try {
     const { data: mailData, error: mailError } = await resend.emails.send({
       from: RESEND_FROM,
@@ -214,6 +232,57 @@ app.post('/api/auth/send-welcome', async (req, res) => {
     res.json({ ok: true, emailSent: true })
   } catch (err) {
     console.error('welcome email exception:', err)
+    res.json({ ok: true, emailSent: false, reason: err.message })
+  }
+})
+
+// ─────────────────────────────────────────────────────────────
+// 相談開始 管理者通知
+// POST /api/admin/notify-consultation
+// Body: { vetName, ownerEmail, pet, symptoms, totalAmount }
+// ─────────────────────────────────────────────────────────────
+app.post('/api/admin/notify-consultation', async (req, res) => {
+  const { vetName, ownerEmail, pet, symptoms, totalAmount } = req.body
+  if (!RESEND_API_KEY || RESEND_API_KEY === 'your_resend_api_key_here') {
+    return res.json({ ok: true, emailSent: false, reason: 'APIキー未設定' })
+  }
+  const resend = new Resend(RESEND_API_KEY)
+  try {
+    await resend.emails.send({
+      from: RESEND_FROM,
+      to: [ADMIN_EMAIL],
+      subject: `【相談開始】獣医師：${vetName || '不明'}、飼い主：${ownerEmail || '不明'}`,
+      html: `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:20px;color:#222;">
+        <h2 style="color:#2a9d8f;">🐾 新しい相談が開始されました</h2>
+        <table style="width:100%;border-collapse:collapse;margin-top:12px;">
+          <tr style="border-bottom:1px solid #e5e7eb;">
+            <td style="padding:8px;font-weight:700;color:#264653;width:35%;">獣医師</td>
+            <td style="padding:8px;">${vetName || '—'}</td>
+          </tr>
+          <tr style="border-bottom:1px solid #e5e7eb;background:#f9fafb;">
+            <td style="padding:8px;font-weight:700;color:#264653;">飼い主メール</td>
+            <td style="padding:8px;">${ownerEmail || '—'}</td>
+          </tr>
+          <tr style="border-bottom:1px solid #e5e7eb;">
+            <td style="padding:8px;font-weight:700;color:#264653;">ペット</td>
+            <td style="padding:8px;">${pet || '—'}</td>
+          </tr>
+          <tr style="border-bottom:1px solid #e5e7eb;background:#f9fafb;">
+            <td style="padding:8px;font-weight:700;color:#264653;">相談内容</td>
+            <td style="padding:8px;">${symptoms || '—'}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px;font-weight:700;color:#264653;">金額</td>
+            <td style="padding:8px;">¥${totalAmount?.toLocaleString() || '—'}</td>
+          </tr>
+        </table>
+        <p style="font-size:0.8rem;color:#9ca3af;margin-top:16px;">開始日時：${new Date().toLocaleString('ja-JP')}</p>
+        <p style="font-size:0.8rem;color:#9ca3af;">※ このメールは自動送信です。</p>
+      </div>`,
+    })
+    res.json({ ok: true, emailSent: true })
+  } catch (err) {
+    console.error('consultation notify error:', err)
     res.json({ ok: true, emailSent: false, reason: err.message })
   }
 })

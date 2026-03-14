@@ -174,7 +174,20 @@ function BookingInner() {
         consultationId = consData?.id
       }
 
-      // 4. チャットルーム作成
+      // 4. 管理者に相談開始通知（fire-and-forget）
+      fetch('/api/admin/notify-consultation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vetName: vet.name,
+          ownerEmail: user.email,
+          pet,
+          symptoms,
+          totalAmount: total,
+        }),
+      }).catch(() => {})
+
+      // 5. チャットルーム作成
       if (supabaseReady) {
         const { data: roomData, error: roomError } = await supabase.from('chat_rooms').insert({
           consultation_id: consultationId,
