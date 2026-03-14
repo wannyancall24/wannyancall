@@ -632,7 +632,12 @@ export default function Home() {
 
       {/* Symptom Articles */}
       <section className="section" style={{ paddingTop: 0 }}>
-        <h2 className="section-title">🔎 症状から調べる</h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <h2 className="section-title" style={{ margin: 0 }}>🔎 症状から調べる</h2>
+          <Link to="/articles" style={{ fontSize: '0.82rem', color: '#2a9d8f', fontWeight: 600, textDecoration: 'none' }}>
+            犬・猫の症状ガイド →
+          </Link>
+        </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {Object.values(SYMPTOM_ARTICLES).map((a) => (
             <button
