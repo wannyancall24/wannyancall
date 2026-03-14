@@ -1,4 +1,5 @@
 import { useParams, Navigate, useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import SEOHead from '../../components/SEOHead'
 import { SYMPTOM_ARTICLES } from '../../data/symptomArticles'
 
@@ -41,6 +42,10 @@ export default function SymptomArticle() {
   const { slug } = useParams()
   const navigate = useNavigate()
   const article = SYMPTOM_ARTICLES[slug]
+
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [slug])
 
   if (!article) return <Navigate to="/" replace />
 
