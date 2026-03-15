@@ -661,10 +661,10 @@ export default function Home() {
         <button
           onClick={handleCopyLink}
           style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
+            display: 'inline-flex', alignItems: 'center', gap: 6,
             background: copied ? '#21867a' : '#2a9d8f',
             color: '#fff', border: 'none', borderRadius: 50,
-            padding: '12px 28px', fontSize: '0.95rem', fontWeight: 700,
+            padding: '8px 18px', fontSize: '0.8rem', fontWeight: 700,
             cursor: 'pointer', transition: 'background 0.2s',
           }}
         >
