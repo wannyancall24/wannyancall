@@ -86,7 +86,7 @@ body {
 .section-title { font-size: 1.2rem; font-weight: 700; color: var(--text); margin-bottom: 16px; }
 
 /* Page wrapper */
-.page { padding-bottom: calc(var(--bottom-nav-height) + 16px); min-height: 100vh; }
+.page { padding-bottom: calc(var(--bottom-nav-height) + 16px); }
 
 /* Badge */
 .badge {
