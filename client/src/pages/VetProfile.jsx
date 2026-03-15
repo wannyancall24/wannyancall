@@ -20,7 +20,7 @@ export default function VetProfile() {
     async function fetchVet() {
       const { data, error } = await supabase
         .from('vets')
-        .select('id,name,specialty,photo,rating,review_count,available_animals,night_ok,is_online,avg_response_min,experience,hospital,bio,career')
+        .select('id,name,specialty,photo,rating,review_count,available_animals,night_ok,is_online,avg_response_min,experience,hospital,bio,career,specialties')
         .eq('id', id)
         .single()
       if (error || !data) { setNotFound(true); setLoading(false); return }
@@ -126,9 +126,19 @@ export default function VetProfile() {
         </section>
       )}
 
+      {/* Specialties */}
+      {vet.specialties && (
+        <section className="section" style={{ paddingTop: vet.bio ? 0 : undefined }}>
+          <h2 className="section-title">🏅 得意分野</h2>
+          <div className="card">
+            <p style={{ fontSize: '0.93rem', lineHeight: 1.85, color: '#264653' }}>{vet.specialties}</p>
+          </div>
+        </section>
+      )}
+
       {/* Career */}
       {vet.career && (
-        <section className="section" style={{ paddingTop: vet.bio ? 0 : undefined }}>
+        <section className="section" style={{ paddingTop: (vet.bio || vet.specialties) ? 0 : undefined }}>
           <h2 className="section-title">📋 経歴</h2>
           <div className="card">
             <p style={{ fontSize: '0.9rem', color: '#264653', lineHeight: 1.85, whiteSpace: 'pre-wrap' }}>{vet.career}</p>
@@ -137,7 +147,7 @@ export default function VetProfile() {
       )}
 
       {/* Rating Summary */}
-      <section className="section" style={{ paddingTop: (vet.bio || vet.career) ? 0 : undefined }}>
+      <section className="section" style={{ paddingTop: (vet.bio || vet.specialties || vet.career) ? 0 : undefined }}>
         <h2 className="section-title">⭐ 評価</h2>
         <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div style={{ textAlign: 'center', flexShrink: 0 }}>

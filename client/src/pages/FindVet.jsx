@@ -159,7 +159,7 @@ export default function FindVet() {
         ) : (
           filtered.map(v => (
             <div key={v.id} className="card" style={{ cursor: 'pointer', marginBottom: 14 }}
-              onClick={() => navigate(`/booking/${v.id}`)}>
+              onClick={() => navigate(`/vet/${v.id}`)}>
               <div style={{ display: 'flex', gap: 14 }}>
                 <div style={{ position: 'relative', flexShrink: 0 }}>
                   <div style={{
