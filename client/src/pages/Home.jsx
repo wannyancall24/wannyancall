@@ -612,6 +612,18 @@ export default function Home() {
         <button className="btn-secondary" onClick={() => navigate('/find')}>すべての獣医師を見る</button>
       </section>
 
+      {/* Symptom Articles */}
+      <section className="section" style={{ paddingTop: 0 }}>
+        <h2 className="section-title">🔎 症状から調べる</h2>
+        <button
+          type="button"
+          onClick={() => navigate('/articles')}
+          className="btn-secondary"
+        >
+          🐾 犬・猫の症状ガイドを見る →
+        </button>
+      </section>
+
       {/* Contact */}
       <section className="section" style={{ paddingTop: 0 }}>
         <h2 className="section-title">📬 お問い合わせ</h2>
@@ -633,18 +645,6 @@ export default function Home() {
           </div>
           <button className="btn-primary">送信する</button>
         </div>
-      </section>
-
-      {/* Symptom Articles */}
-      <section className="section" style={{ paddingTop: 0 }}>
-        <h2 className="section-title">🔎 症状から調べる</h2>
-        <button
-          type="button"
-          onClick={() => navigate('/articles')}
-          className="btn-secondary"
-        >
-          🐾 犬・猫の症状ガイドを見る →
-        </button>
       </section>
 
       {/* Footer */}
