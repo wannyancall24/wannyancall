@@ -319,6 +319,14 @@ export default function Home() {
   const [consultConfirm, setConsultConfirm] = useState(null) // null | 'dogcat' | 'exotic'
   const [vets, setVets] = useState([])
   const [onlineVetCount, setOnlineVetCount] = useState(null)
+  const [copied, setCopied] = useState(false)
+
+  function handleCopyLink() {
+    navigator.clipboard.writeText('https://wannyancall.vercel.app').then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
 
   useEffect(() => {
     if (!supabaseReady) return
@@ -645,6 +653,23 @@ export default function Home() {
           </div>
           <button className="btn-primary">送信する</button>
         </div>
+      </section>
+
+      {/* Share */}
+      <section className="section" style={{ paddingTop: 0, textAlign: 'center' }}>
+        <h2 className="section-title">🔗 このサービスを共有</h2>
+        <button
+          onClick={handleCopyLink}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            background: copied ? '#21867a' : '#2a9d8f',
+            color: '#fff', border: 'none', borderRadius: 50,
+            padding: '12px 28px', fontSize: '0.95rem', fontWeight: 700,
+            cursor: 'pointer', transition: 'background 0.2s',
+          }}
+        >
+          {copied ? '✅ コピーしました！' : '🔗 リンクをコピーする'}
+        </button>
       </section>
 
       {/* Footer */}

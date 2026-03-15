@@ -20,10 +20,9 @@ export default function BottomNav({ userMode }) {
 
   return (
     <nav style={{
-      position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-      width: '100%', maxWidth: 480,
+      width: '100%', maxWidth: 480, margin: '0 auto',
       background: '#fff', borderTop: '1px solid #e5e7eb',
-      display: 'flex', height: 64, zIndex: 100,
+      display: 'flex', height: 64,
       boxShadow: '0 -2px 10px rgba(0,0,0,0.07)'
     }}>
       {items.map((item) => {
