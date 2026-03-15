@@ -15,6 +15,7 @@ export default function Header({ userMode, setUserMode }) {
   const { user, role, loading, signOut } = useAuth()
   const isVetPage = location.pathname.startsWith('/vet/')
   const isBooking = location.pathname.startsWith('/booking/')
+  const isResetPassword = location.pathname === '/reset-password'
   const title = isVetPage ? '獣医師プロフィール' : isBooking ? '予約・決済' : (titles[location.pathname] || 'WanNyanCall24')
   const showTabs = location.pathname === '/'
 
@@ -39,19 +40,23 @@ export default function Header({ userMode, setUserMode }) {
           <div style={{ width: 80 }} />
         ) : user ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{
-              fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 50,
-              background: role === 'vet' ? '#e8f6f5' : '#f0f9f8',
-              color: '#2a9d8f'
-            }}>
-              {role === 'vet' ? '🩺 獣医師' : '🐕 飼い主'}
-            </span>
-            <button onClick={handleSignOut} style={{
-              background: 'none', border: '1px solid #e5e7eb', borderRadius: 8,
-              padding: '4px 10px', fontSize: '0.75rem', color: '#6b7280', cursor: 'pointer'
-            }}>
-              ログアウト
-            </button>
+            {!isResetPassword && (
+              <>
+                <span style={{
+                  fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 50,
+                  background: role === 'vet' ? '#e8f6f5' : '#f0f9f8',
+                  color: '#2a9d8f'
+                }}>
+                  {role === 'vet' ? '🩺 獣医師' : '🐕 飼い主'}
+                </span>
+                <button onClick={handleSignOut} style={{
+                  background: 'none', border: '1px solid #e5e7eb', borderRadius: 8,
+                  padding: '4px 10px', fontSize: '0.75rem', color: '#6b7280', cursor: 'pointer'
+                }}>
+                  ログアウト
+                </button>
+              </>
+            )}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>

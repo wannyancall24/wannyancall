@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function ResetPassword() {
-  const { loading, recoveryMode, clearRecoveryMode } = useAuth()
+  const { loading, recoveryMode, clearRecoveryMode, signOut } = useAuth()
   const navigate = useNavigate()
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
@@ -32,6 +32,10 @@ export default function ResetPassword() {
     }
     clearRecoveryMode()
     setDone(true)
+    setTimeout(async () => {
+      await signOut()
+      navigate('/auth', { replace: true })
+    }, 2000)
   }
 
   // Still waiting for auth to initialize
