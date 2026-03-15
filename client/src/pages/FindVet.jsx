@@ -55,7 +55,7 @@ export default function FindVet() {
     const { data, error } = await queryWithRetry(
       () => supabase
         .from('vets')
-        .select('id,name,specialty,specialties,photo,rating,review_count,available_animals,night_ok,is_online,avg_response_min'),
+        .select('id,name,specialty,photo,rating,review_count,available_animals,night_ok,is_online,avg_response_min'),
       { retries: 2, timeoutMs: 15000 }
     )
     if (error) {
@@ -201,11 +201,6 @@ export default function FindVet() {
                     ))}
                     {v.night_ok && <span className="tag" style={{ background: '#fef3c7', color: '#d97706' }}>🌙夜間OK</span>}
                   </div>
-                  {v.specialties && (
-                    <div style={{ fontSize: '0.78rem', color: '#6b7280', marginBottom: 8 }}>
-                      🏅 {v.specialties}
-                    </div>
-                  )}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                     <span style={{ fontSize: '0.75rem', color: '#6b7280', flex: 1 }}>⚡ 平均{v.avg_response_min}分以内</span>
                     <button className="btn-primary"
