@@ -17,15 +17,22 @@
   --bottom-nav-height: 64px;
 }
 
-html { font-size: 16px; }
+html {
+  font-size: 16px;
+  scroll-snap-type: none;
+}
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+  scroll-snap-type: none;
 }
-#root { max-width: 480px; margin: 0 auto; min-height: 100vh; position: relative; background: var(--bg); }
+#root { max-width: 480px; margin: 0 auto; min-height: 100vh; position: relative; background: var(--bg); scroll-snap-type: none; }
+
+/* スクロールスナップを全要素で明示的に無効化 */
+.page, .section, .card { scroll-snap-align: none; scroll-snap-stop: normal; }
 
 /* Buttons */
 .btn-primary {
