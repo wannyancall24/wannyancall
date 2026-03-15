@@ -182,6 +182,9 @@ export default function Auth() {
                 <div style={{ textAlign: 'center', padding: '8px 0' }}>
                   <div style={{ background: '#e8f6f5', borderRadius: 12, padding: '16px 14px', marginBottom: 20, fontSize: '0.88rem', color: '#2a9d8f', fontWeight: 600, lineHeight: 1.7 }}>
                     ✅ {message}
+                    <div style={{ marginTop: 8, fontSize: '0.8rem', fontWeight: 400, color: '#6b7280' }}>
+                      メールが届かない場合は迷惑メールフォルダをご確認ください。
+                    </div>
                   </div>
                   <button
                     onClick={() => { setMode('login'); setError(''); setMessage(''); setEmail('') }}
@@ -279,6 +282,9 @@ export default function Auth() {
           {mode !== 'reset' && message && (
             <div style={{ background: '#e8f6f5', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.85rem', color: '#2a9d8f', fontWeight: 600 }}>
               {message}
+              <div style={{ marginTop: 6, fontSize: '0.78rem', fontWeight: 400, color: '#6b7280' }}>
+                メールが届かない場合は迷惑メールフォルダをご確認ください。
+              </div>
             </div>
           )}
 
