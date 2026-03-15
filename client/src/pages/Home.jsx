@@ -656,8 +656,8 @@ export default function Home() {
       </section>
 
       {/* Share */}
-      <section className="section" style={{ paddingTop: 0 }}>
-        <h2 className="section-title">🔗 このサービスを共有</h2>
+      <section className="section" style={{ paddingTop: 0, textAlign: 'center' }}>
+        <h2 className="section-title" style={{ textAlign: 'center' }}>🔗 このサービスを共有</h2>
         <div style={{ textAlign: 'center' }}>
           <button
             onClick={handleCopyLink}

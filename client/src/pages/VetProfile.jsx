@@ -52,7 +52,6 @@ export default function VetProfile() {
 
   const stats = [
     { label: '評価', value: vet.rating ?? '-', unit: '/5.0' },
-    { label: '相談件数', value: vet.review_count ?? 0, unit: '件' },
     vet.experience ? { label: '経験年数', value: vet.experience, unit: '年' } : null,
     vet.avg_response_min ? { label: '平均応答', value: vet.avg_response_min, unit: '分' } : null,
   ].filter(Boolean)
@@ -116,39 +115,9 @@ export default function VetProfile() {
         ))}
       </div>
 
-      {/* Bio */}
-      {vet.bio && (
-        <section className="section">
-          <h2 className="section-title">💬 自己紹介</h2>
-          <div className="card">
-            <p style={{ fontSize: '0.93rem', lineHeight: 1.85, color: '#264653' }}>{vet.bio}</p>
-          </div>
-        </section>
-      )}
-
-      {/* Specialties */}
-      {vet.specialties && (
-        <section className="section" style={{ paddingTop: vet.bio ? 0 : undefined }}>
-          <h2 className="section-title">🏅 得意分野</h2>
-          <div className="card">
-            <p style={{ fontSize: '0.93rem', lineHeight: 1.85, color: '#264653' }}>{vet.specialties}</p>
-          </div>
-        </section>
-      )}
-
-      {/* Career */}
-      {vet.career && (
-        <section className="section" style={{ paddingTop: (vet.bio || vet.specialties) ? 0 : undefined }}>
-          <h2 className="section-title">📋 経歴</h2>
-          <div className="card">
-            <p style={{ fontSize: '0.9rem', color: '#264653', lineHeight: 1.85, whiteSpace: 'pre-wrap' }}>{vet.career}</p>
-          </div>
-        </section>
-      )}
-
       {/* 対応動物 */}
       {animals.length > 0 && (
-        <section className="section" style={{ paddingTop: (vet.bio || vet.specialties || vet.career) ? 0 : undefined }}>
+        <section className="section">
           <h2 className="section-title">🐾 対応動物</h2>
           <div className="card">
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -159,6 +128,36 @@ export default function VetProfile() {
                 <span style={{ background: '#fef3c7', color: '#d97706', padding: '5px 14px', borderRadius: 50, fontSize: '0.85rem', fontWeight: 600 }}>🌙 夜間OK</span>
               )}
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* Career */}
+      {vet.career && (
+        <section className="section" style={{ paddingTop: 0 }}>
+          <h2 className="section-title">📋 経歴</h2>
+          <div className="card">
+            <p style={{ fontSize: '0.9rem', color: '#264653', lineHeight: 1.85, whiteSpace: 'pre-wrap' }}>{vet.career}</p>
+          </div>
+        </section>
+      )}
+
+      {/* Specialties */}
+      {vet.specialties && (
+        <section className="section" style={{ paddingTop: 0 }}>
+          <h2 className="section-title">🏅 得意分野</h2>
+          <div className="card">
+            <p style={{ fontSize: '0.93rem', lineHeight: 1.85, color: '#264653' }}>{vet.specialties}</p>
+          </div>
+        </section>
+      )}
+
+      {/* Bio */}
+      {vet.bio && (
+        <section className="section" style={{ paddingTop: 0 }}>
+          <h2 className="section-title">💬 自己紹介</h2>
+          <div className="card">
+            <p style={{ fontSize: '0.93rem', lineHeight: 1.85, color: '#264653' }}>{vet.bio}</p>
           </div>
         </section>
       )}
