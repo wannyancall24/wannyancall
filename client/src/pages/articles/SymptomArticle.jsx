@@ -393,41 +393,56 @@ export default function SymptomArticle() {
         )}
 
         {/* 関連記事 */}
-        <section>
-          <h2 style={{
-            fontSize: '1rem',
-            fontWeight: 700,
-            color: '#1f2937',
-            marginBottom: 12,
-          }}>
-            関連記事
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {Object.values(SYMPTOM_ARTICLES)
-              .filter((a) => a.slug !== slug)
-              .sort((a, b) => (b.animalType === article.animalType ? 1 : 0) - (a.animalType === article.animalType ? 1 : 0))
-              .map((a) => (
-                <button
-                  key={a.slug}
-                  type="button"
-                  onClick={() => navigate(`/article/${a.slug}`)}
-                  style={{
-                    textAlign: 'left',
-                    padding: '12px 14px',
-                    background: '#f9fafb',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    fontSize: '0.88rem',
-                    color: '#2a9d8f',
-                    fontWeight: 600,
-                  }}
-                >
-                  {a.emoji} {a.h1}
-                </button>
-              ))}
-          </div>
-        </section>
+        {(() => {
+          const keywords = (article.h1 + ' ' + (article.symptom || '')).match(/[^\s、。「」（）()]+/g) || []
+          const related = Object.values(SYMPTOM_ARTICLES)
+            .filter((a) => a.slug !== slug)
+            .map((a) => {
+              let score = 0
+              if (a.animalType === article.animalType) score += 10
+              const titleAndSymptom = a.h1 + ' ' + (a.symptom || '')
+              keywords.forEach((kw) => {
+                if (kw.length >= 2 && titleAndSymptom.includes(kw)) score += 3
+              })
+              return { ...a, score }
+            })
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 6)
+          return (
+            <section>
+              <h2 style={{
+                fontSize: '1rem',
+                fontWeight: 700,
+                color: '#1f2937',
+                marginBottom: 12,
+              }}>
+                関連記事
+              </h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {related.map((a) => (
+                  <button
+                    key={a.slug}
+                    type="button"
+                    onClick={() => navigate(`/article/${a.slug}`)}
+                    style={{
+                      textAlign: 'left',
+                      padding: '12px 14px',
+                      background: '#f9fafb',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                      fontSize: '0.88rem',
+                      color: '#2a9d8f',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {a.emoji} {a.h1}
+                  </button>
+                ))}
+              </div>
+            </section>
+          )
+        })()}
       </div>
     </>
   )
