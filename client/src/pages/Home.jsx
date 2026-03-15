@@ -656,20 +656,22 @@ export default function Home() {
       </section>
 
       {/* Share */}
-      <section className="section" style={{ paddingTop: 0, textAlign: 'center' }}>
-        <h2 className="section-title" style={{ fontSize: '1.2rem' }}>🔗 このサービスを共有</h2>
-        <button
-          onClick={handleCopyLink}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            background: copied ? '#21867a' : '#2a9d8f',
-            color: '#fff', border: 'none', borderRadius: 50,
-            padding: '6px 14px', fontSize: '0.75rem', fontWeight: 700,
-            cursor: 'pointer', transition: 'background 0.2s',
-          }}
-        >
-          {copied ? '✅ コピーしました！' : '🔗 リンクをコピーする'}
-        </button>
+      <section className="section" style={{ paddingTop: 0 }}>
+        <h2 className="section-title">🔗 このサービスを共有</h2>
+        <div style={{ textAlign: 'center' }}>
+          <button
+            onClick={handleCopyLink}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: copied ? '#21867a' : '#2a9d8f',
+              color: '#fff', border: 'none', borderRadius: 50,
+              padding: '6px 14px', fontSize: '0.75rem', fontWeight: 700,
+              cursor: 'pointer', transition: 'background 0.2s',
+            }}
+          >
+            {copied ? '✅ コピーしました！' : '🔗 リンクをコピーする'}
+          </button>
+        </div>
       </section>
 
       {/* Footer */}

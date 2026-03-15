@@ -146,8 +146,25 @@ export default function VetProfile() {
         </section>
       )}
 
+      {/* 対応動物 */}
+      {animals.length > 0 && (
+        <section className="section" style={{ paddingTop: (vet.bio || vet.specialties || vet.career) ? 0 : undefined }}>
+          <h2 className="section-title">🐾 対応動物</h2>
+          <div className="card">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {animals.map(t => (
+                <span key={t} style={{ background: '#e8f6f5', color: '#2a9d8f', padding: '5px 14px', borderRadius: 50, fontSize: '0.85rem', fontWeight: 600 }}>{t}</span>
+              ))}
+              {vet.night_ok && (
+                <span style={{ background: '#fef3c7', color: '#d97706', padding: '5px 14px', borderRadius: 50, fontSize: '0.85rem', fontWeight: 600 }}>🌙 夜間OK</span>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Rating Summary */}
-      <section className="section" style={{ paddingTop: (vet.bio || vet.specialties || vet.career) ? 0 : undefined }}>
+      <section className="section" style={{ paddingTop: 0 }}>
         <h2 className="section-title">⭐ 評価</h2>
         <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div style={{ textAlign: 'center', flexShrink: 0 }}>
@@ -161,20 +178,6 @@ export default function VetProfile() {
           </div>
         </div>
       </section>
-
-      {/* 免責文 */}
-      <div style={{
-        margin: '0 16px 16px',
-        padding: '10px 14px',
-        background: '#f9fafb',
-        border: '1px solid #e5e7eb',
-        borderRadius: 8,
-        fontSize: '0.75rem',
-        color: '#6b7280',
-        lineHeight: 1.6,
-      }}>
-        ※本サービスは診断・治療ではなく一般的なアドバイスを提供する相談サービスです。
-      </div>
 
       {/* Sticky CTA */}
       <div style={{
@@ -202,6 +205,9 @@ export default function VetProfile() {
         <button className="btn-primary" onClick={() => navigate(`/booking/${id}`)}>
           予約する
         </button>
+        <p style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'center', marginTop: 8, lineHeight: 1.5 }}>
+          ※本サービスは診断・治療ではなく、一般的なアドバイスを提供する相談サービスです。
+        </p>
       </div>
     </div>
   )
