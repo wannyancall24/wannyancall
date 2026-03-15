@@ -20,7 +20,7 @@ export default function VetProfile() {
     async function fetchVet() {
       const { data, error } = await supabase
         .from('vets')
-        .select('id,name,specialty,photo,rating,review_count,available_animals,night_ok,is_online,avg_response_min,experience,hospital,bio,career')
+        .select('id,name,specialty,photo,rating,review_count,available_animals,night_ok,is_online,avg_response_min,experience,hospital,bio,career,specialties')
         .eq('id', id)
         .single()
       if (error || !data) { setNotFound(true); setLoading(false); return }
@@ -119,16 +119,26 @@ export default function VetProfile() {
       {/* Bio */}
       {vet.bio && (
         <section className="section">
-          <h2 className="section-title">👨‍⚕️ プロフィール</h2>
+          <h2 className="section-title">💬 自己紹介</h2>
           <div className="card">
             <p style={{ fontSize: '0.93rem', lineHeight: 1.85, color: '#264653' }}>{vet.bio}</p>
           </div>
         </section>
       )}
 
+      {/* Specialties */}
+      {vet.specialties && (
+        <section className="section" style={{ paddingTop: vet.bio ? 0 : undefined }}>
+          <h2 className="section-title">🏅 得意分野</h2>
+          <div className="card">
+            <p style={{ fontSize: '0.93rem', lineHeight: 1.85, color: '#264653' }}>{vet.specialties}</p>
+          </div>
+        </section>
+      )}
+
       {/* Career */}
       {vet.career && (
-        <section className="section" style={{ paddingTop: vet.bio ? 0 : undefined }}>
+        <section className="section" style={{ paddingTop: (vet.bio || vet.specialties) ? 0 : undefined }}>
           <h2 className="section-title">📋 経歴</h2>
           <div className="card">
             <p style={{ fontSize: '0.9rem', color: '#264653', lineHeight: 1.85, whiteSpace: 'pre-wrap' }}>{vet.career}</p>
@@ -151,6 +161,20 @@ export default function VetProfile() {
           </div>
         </div>
       </section>
+
+      {/* 免責文 */}
+      <div style={{
+        margin: '0 16px 16px',
+        padding: '10px 14px',
+        background: '#f9fafb',
+        border: '1px solid #e5e7eb',
+        borderRadius: 8,
+        fontSize: '0.75rem',
+        color: '#6b7280',
+        lineHeight: 1.6,
+      }}>
+        ※本サービスは診断・治療ではなく一般的なアドバイスを提供する相談サービスです。
+      </div>
 
       {/* Sticky CTA */}
       <div style={{

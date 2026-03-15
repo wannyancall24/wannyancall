@@ -154,7 +154,7 @@ export default function VetDashboard() {
   const [form, setForm] = useState({
     name: '', email: '', tel: '', licenseNo: '',
     specialty: '', experience: '',
-    hospital: '', career: '', bio: '', nightOk: '対応可能',
+    hospital: '', career: '', specialties: '', bio: '', nightOk: '対応可能',
   })
   const [selectedAnimals, setSelectedAnimals] = useState([])
   const [licenseImage, setLicenseImage] = useState(null)
@@ -288,6 +288,7 @@ export default function VetDashboard() {
     if (step === 3) {
       if (!form.hospital) e.hospital = '必須です'
       if (!form.career) e.career = '必須です'
+      if (!form.specialties) e.specialties = '必須です'
     }
     setErrors(e)
     return Object.keys(e).length === 0
@@ -541,6 +542,13 @@ export default function VetDashboard() {
             {errors.career && <p style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: 4 }}>{errors.career}</p>}
           </div>
           <div className="form-group">
+            <label className="form-label">得意分野 <span style={{ color: '#ef4444' }}>*</span></label>
+            <input className="form-input" type="text" placeholder="例：犬の皮膚科・猫の内科・小型犬の外科"
+              value={form.specialties} onChange={e => set('specialties', e.target.value)}
+              style={{ borderColor: errors.specialties ? '#ef4444' : '' }} />
+            {errors.specialties && <p style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: 4 }}>{errors.specialties}</p>}
+          </div>
+          <div className="form-group">
             <label className="form-label">自己紹介・飼い主へのメッセージ</label>
             <textarea className="form-input" rows={4} style={{ resize: 'none' }}
               placeholder="相談者へのメッセージを自由に記入してください"
@@ -592,7 +600,8 @@ export default function VetDashboard() {
           <div className="card">
             <h3 style={{ fontWeight: 700, marginBottom: 10, fontSize: '0.95rem' }}>勤務先・経歴</h3>
             <p style={{ fontSize: '0.88rem', color: '#264653', marginBottom: 8 }}><strong>勤務先：</strong>{form.hospital}</p>
-            <p style={{ fontSize: '0.85rem', color: '#6b7280', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{form.career}</p>
+            <p style={{ fontSize: '0.85rem', color: '#6b7280', whiteSpace: 'pre-wrap', lineHeight: 1.7, marginBottom: 8 }}>{form.career}</p>
+            {form.specialties && <p style={{ fontSize: '0.88rem', color: '#264653' }}><strong>得意分野：</strong>{form.specialties}</p>}
           </div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
             <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setFormStep(3)}>← 戻る</button>
