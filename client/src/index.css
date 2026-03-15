@@ -82,7 +82,7 @@ body {
 }
 
 /* Section */
-.section { padding: 24px 16px; }
+.section { padding: 24px 16px; height: auto !important; min-height: unset !important; }
 .section-title { font-size: 1.2rem; font-weight: 700; color: var(--text); margin-bottom: 16px; }
 
 /* Page wrapper */
