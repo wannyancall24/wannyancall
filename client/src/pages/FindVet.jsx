@@ -55,7 +55,7 @@ export default function FindVet() {
     const { data, error } = await queryWithRetry(
       () => supabase
         .from('vets')
-        .select('id,name,specialty,photo,rating,review_count,available_animals,night_ok,is_online,avg_response_min'),
+        .select('*'),
       { retries: 2, timeoutMs: 15000 }
     )
     if (error) {
