@@ -8,8 +8,12 @@ export function AuthProvider({ children }) {
   const [role, setRole] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [recoveryMode, setRecoveryMode] = useState(false)
-  const recoveryRef = useRef(false)
+  const [recoveryMode, setRecoveryMode] = useState(() =>
+    typeof window !== 'undefined' && window.location.hash.includes('type=recovery')
+  )
+  const recoveryRef = useRef(
+    typeof window !== 'undefined' && window.location.hash.includes('type=recovery')
+  )
 
   useEffect(() => {
     if (!supabaseReady) { setLoading(false); return }

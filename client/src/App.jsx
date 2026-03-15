@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { supabase, supabaseReady } from './lib/supabase'
 import BottomNav from './components/BottomNav'
 import Header from './components/Header'
 import Home from './pages/Home'
@@ -53,6 +54,28 @@ function AppInner() {
   const [userMode, setUserMode] = useState('owner')
   const location = useLocation()
   const navigate = useNavigate()
+
+  // PASSWORD_RECOVERYイベントを監視して/reset-passwordへ遷移
+  useEffect(() => {
+    if (!supabaseReady) return
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        navigate('/reset-password', { replace: true })
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [navigate])
+
+  // ページロード時にURLハッシュにtype=recoveryがあれば即遷移
+  useEffect(() => {
+    if (
+      typeof window !== 'undefined' &&
+      window.location.hash.includes('type=recovery') &&
+      location.pathname !== '/reset-password'
+    ) {
+      navigate('/reset-password', { replace: true })
+    }
+  }, [])
 
   // ログイン後、ロールに応じて自動切り替え
   useEffect(() => {

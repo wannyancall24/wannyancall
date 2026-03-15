@@ -31,14 +31,14 @@ export default function Auth() {
   const [message, setMessage] = useState('')
   const [toast, setToast] = useState(null)
   const navigate = useNavigate()
-  const { user, role } = useAuth()
+  const { user, role, recoveryMode } = useAuth()
 
-  // ログイン済みなら自動リダイレクト（roleがnullでもリダイレクト）
+  // ログイン済みなら自動リダイレクト（リカバリーモード中は除く）
   useEffect(() => {
-    if (user) {
+    if (user && !recoveryMode) {
       navigate('/', { replace: true })
     }
-  }, [user, navigate])
+  }, [user, recoveryMode, navigate])
 
   async function handleLogin(e) {
     e.preventDefault()
