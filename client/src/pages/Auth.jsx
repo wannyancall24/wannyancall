@@ -289,7 +289,7 @@ export default function Auth() {
           )}
 
           {/* Login Form */}
-          {mode === 'login' ? (
+          {mode !== 'reset' && (mode === 'login' ? (
             <form onSubmit={handleLogin}>
               <div className="form-group">
                 <label className="form-label">メールアドレス</label>
@@ -366,7 +366,7 @@ export default function Auth() {
                 {loading ? '登録中...' : userType === 'vet' ? '獣医師として登録する' : '会員登録する'}
               </button>
             </form>
-          )}
+          ))}
         </div>
 
         {mode !== 'reset' && (
