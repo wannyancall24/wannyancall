@@ -33,7 +33,7 @@ export default function Header({ userMode, setUserMode }) {
     }}>
       <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <img src="https://zghkfpvzfuydevuaodma.supabase.co/storage/v1/object/public/chat-images/logo.png.PNG" alt="logo" style={{ width: '1.4rem', height: '1.4rem', objectFit: 'contain' }} />
+          <span style={{ fontSize: '1.4rem' }}>🐾</span>
           <span style={{ fontWeight: 700, fontSize: '1.05rem', color: '#2a9d8f' }}>{title}</span>
         </div>
         {loading ? (
