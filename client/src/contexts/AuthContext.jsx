@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import { supabase, supabaseReady } from '../lib/supabase'
 
 const AuthContext = createContext(null)
@@ -8,6 +8,8 @@ export function AuthProvider({ children }) {
   const [role, setRole] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [recoveryMode, setRecoveryMode] = useState(false)
+  const recoveryRef = useRef(false)
 
   useEffect(() => {
     if (!supabaseReady) { setLoading(false); return }
@@ -21,12 +23,23 @@ export function AuthProvider({ children }) {
         clearTimeout(timeout)
         setLoading(false)
         if (u) fetchProfile(u.id).then(p => { if (mounted) { setRole(p?.role ?? null); setIsAdmin(p?.is_admin ?? false) } })
+      } else if (event === 'PASSWORD_RECOVERY') {
+        const u = session?.user ?? null
+        setUser(u)
+        clearTimeout(timeout)
+        setLoading(false)
+        recoveryRef.current = true
+        setRecoveryMode(true)
       } else if (event === 'SIGNED_IN') {
+        // Skip normal SIGNED_IN processing if already in recovery mode
+        if (recoveryRef.current) return
         const u = session?.user ?? null
         setUser(u)
         if (u) fetchProfile(u.id).then(p => { if (mounted) { setRole(p?.role ?? null); setIsAdmin(p?.is_admin ?? false) } })
       } else if (event === 'SIGNED_OUT') {
         setUser(null); setRole(null); setIsAdmin(false)
+        recoveryRef.current = false
+        setRecoveryMode(false)
       }
     })
     return () => { mounted = false; clearTimeout(timeout); subscription.unsubscribe() }
@@ -34,11 +47,18 @@ export function AuthProvider({ children }) {
 
   const signOut = useCallback(async () => {
     setUser(null); setRole(null); setIsAdmin(false)
+    recoveryRef.current = false
+    setRecoveryMode(false)
     if (supabaseReady) { try { await supabase.auth.signOut() } catch {} }
   }, [])
 
+  const clearRecoveryMode = useCallback(() => {
+    recoveryRef.current = false
+    setRecoveryMode(false)
+  }, [])
+
   return (
-    <AuthContext.Provider value={{ user, role, isAdmin, loading, signOut }}>
+    <AuthContext.Provider value={{ user, role, isAdmin, loading, signOut, recoveryMode, clearRecoveryMode }}>
       {children}
     </AuthContext.Provider>
   )
